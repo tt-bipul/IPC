@@ -1,0 +1,356 @@
+{
+  "agencies": [
+    {
+      "name": "id",
+      "type": "char",
+      "columnType": "char(36)",
+      "nullable": "NO",
+      "key": "PRI",
+      "extra": ""
+    },
+    {
+      "name": "tenant_id",
+      "type": "char",
+      "columnType": "char(36)",
+      "nullable": "NO",
+      "key": "",
+      "extra": ""
+    },
+    {
+      "name": "agency_name",
+      "type": "varchar",
+      "columnType": "varchar(200)",
+      "nullable": "NO",
+      "key": "",
+      "extra": ""
+    },
+    {
+      "name": "branch_code",
+      "type": "varchar",
+      "columnType": "varchar(50)",
+      "nullable": "YES",
+      "key": "",
+      "extra": ""
+    },
+    {
+      "name": "email",
+      "type": "varchar",
+      "columnType": "varchar(200)",
+      "nullable": "NO",
+      "key": "",
+      "extra": ""
+    },
+    {
+      "name": "phone_number",
+      "type": "varchar",
+      "columnType": "varchar(20)",
+      "nullable": "YES",
+      "key": "",
+      "extra": ""
+    },
+    {
+      "name": "alternate_phone_number",
+      "type": "varchar",
+      "columnType": "varchar(20)",
+      "nullable": "YES",
+      "key": "",
+      "extra": ""
+    },
+    {
+      "name": "country",
+      "type": "varchar",
+      "columnType": "varchar(100)",
+      "nullable": "YES",
+      "key": "",
+      "extra": ""
+    },
+    {
+      "name": "address_line_1",
+      "type": "varchar",
+      "columnType": "varchar(255)",
+      "nullable": "YES",
+      "key": "",
+      "extra": ""
+    },
+    {
+      "name": "address_line_2",
+      "type": "varchar",
+      "columnType": "varchar(255)",
+      "nullable": "YES",
+      "key": "",
+      "extra": ""
+    },
+    {
+      "name": "pincode",
+      "type": "varchar",
+      "columnType": "varchar(20)",
+      "nullable": "YES",
+      "key": "",
+      "extra": ""
+    },
+    {
+      "name": "state",
+      "type": "varchar",
+      "columnType": "varchar(100)",
+      "nullable": "YES",
+      "key": "",
+      "extra": ""
+    },
+    {
+      "name": "city",
+      "type": "varchar",
+      "columnType": "varchar(100)",
+      "nullable": "YES",
+      "key": "",
+      "extra": ""
+    }
+  ],
+  "business_rules": [
+    {
+      "name": "id",
+      "type": "char",
+      "columnType": "char(36)",
+      "nullable": "NO",
+      "key": "PRI",
+      "extra": ""
+    },
+    {
+      "name": "tenant_id",
+      "type": "char",
+      "columnType": "char(36)",
+      "nullable": "YES",
+      "key": "",
+      "extra": ""
+    },
+    {
+      "name": "agency_id",
+      "type": "char",
+      "columnType": "char(36)",
+      "nullable": "YES",
+      "key": "",
+      "extra": ""
+    },
+    {
+      "name": "field_name",
+      "type": "varchar",
+      "columnType": "varchar(100)",
+      "nullable": "YES",
+      "key": "",
+      "extra": ""
+    },
+    {
+      "name": "rule_type",
+      "type": "varchar",
+      "columnType": "varchar(50)",
+      "nullable": "YES",
+      "key": "",
+      "extra": ""
+    }
+  ],
+  "reports": [
+    {
+      "name": "id",
+      "type": "char",
+      "columnType": "char(36)",
+      "nullable": "NO",
+      "key": "PRI",
+      "extra": ""
+    },
+    {
+      "name": "agent_id",
+      "type": "char",
+      "columnType": "char(36)",
+      "nullable": "YES",
+      "key": "",
+      "extra": ""
+    },
+    {
+      "name": "status",
+      "type": "varchar",
+      "columnType": "varchar(50)",
+      "nullable": "YES",
+      "key": "",
+      "extra": ""
+    },
+    {
+      "name": "pdf_path",
+      "type": "text",
+      "columnType": "text",
+      "nullable": "YES",
+      "key": "",
+      "extra": ""
+    }
+  ],
+  "tenants": [
+    {
+      "name": "id",
+      "type": "char",
+      "columnType": "char(36)",
+      "nullable": "NO",
+      "key": "PRI",
+      "extra": ""
+    },
+    {
+      "name": "name",
+      "type": "varchar",
+      "columnType": "varchar(200)",
+      "nullable": "NO",
+      "key": "",
+      "extra": ""
+    },
+    {
+      "name": "company_email",
+      "type": "varchar",
+      "columnType": "varchar(100)",
+      "nullable": "YES",
+      "key": "",
+      "extra": ""
+    },
+    {
+      "name": "phone_number",
+      "type": "varchar",
+      "columnType": "varchar(20)",
+      "nullable": "YES",
+      "key": "",
+      "extra": ""
+    },
+    {
+      "name": "country",
+      "type": "varchar",
+      "columnType": "varchar(20)",
+      "nullable": "YES",
+      "key": "",
+      "extra": ""
+    },
+    {
+      "name": "address",
+      "type": "varchar",
+      "columnType": "varchar(255)",
+      "nullable": "YES",
+      "key": "",
+      "extra": ""
+    }
+  ],
+  "users": [
+    {
+      "name": "id",
+      "type": "char",
+      "columnType": "char(36)",
+      "nullable": "NO",
+      "key": "PRI",
+      "extra": ""
+    },
+    {
+      "name": "tenant_id",
+      "type": "char",
+      "columnType": "char(36)",
+      "nullable": "YES",
+      "key": "",
+      "extra": ""
+    },
+    {
+      "name": "agency_id",
+      "type": "char",
+      "columnType": "char(36)",
+      "nullable": "YES",
+      "key": "",
+      "extra": ""
+    },
+    {
+      "name": "username",
+      "type": "varchar",
+      "columnType": "varchar(100)",
+      "nullable": "NO",
+      "key": "UNI",
+      "extra": ""
+    },
+    {
+      "name": "user_role",
+      "type": "enum",
+      "columnType": "enum('TENANT_ADMIN','VP','AGENCY_EXECUTIVE')",
+      "nullable": "NO",
+      "key": "",
+      "extra": ""
+    },
+    {
+      "name": "first_name",
+      "type": "varchar",
+      "columnType": "varchar(100)",
+      "nullable": "NO",
+      "key": "",
+      "extra": ""
+    },
+    {
+      "name": "middle_name",
+      "type": "varchar",
+      "columnType": "varchar(100)",
+      "nullable": "YES",
+      "key": "",
+      "extra": ""
+    },
+    {
+      "name": "last_name",
+      "type": "varchar",
+      "columnType": "varchar(100)",
+      "nullable": "NO",
+      "key": "",
+      "extra": ""
+    },
+    {
+      "name": "email",
+      "type": "varchar",
+      "columnType": "varchar(200)",
+      "nullable": "NO",
+      "key": "UNI",
+      "extra": ""
+    },
+    {
+      "name": "phone_number",
+      "type": "varchar",
+      "columnType": "varchar(20)",
+      "nullable": "YES",
+      "key": "",
+      "extra": ""
+    },
+    {
+      "name": "country",
+      "type": "varchar",
+      "columnType": "varchar(100)",
+      "nullable": "YES",
+      "key": "",
+      "extra": ""
+    },
+    {
+      "name": "address",
+      "type": "varchar",
+      "columnType": "varchar(500)",
+      "nullable": "YES",
+      "key": "",
+      "extra": ""
+    },
+    {
+      "name": "password_hash",
+      "type": "text",
+      "columnType": "text",
+      "nullable": "NO",
+      "key": "",
+      "extra": ""
+    },
+    {
+      "name": "is_active",
+      "type": "tinyint",
+      "columnType": "tinyint(1)",
+      "nullable": "YES",
+      "key": "",
+      "extra": ""
+    },
+    {
+      "name": "vp_agency_id",
+      "type": "char",
+      "columnType": "char(36)",
+      "nullable": "YES",
+      "key": "UNI",
+      "extra": "STORED GENERATED"
+    }
+  ]
+}

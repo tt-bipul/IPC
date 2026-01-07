@@ -1,0 +1,209 @@
+[
+  {
+    "route": "/users/register",
+    "method": "POST",
+    "status": 201,
+    "success": true,
+    "data": {
+      "status": "success",
+      "message": "User registered successfully",
+      "data": {
+        "user": {
+          "id": "08bfba5f-8ffa-4e50-b917-d6d206fe4b78",
+          "username": "admin_1767775733837",
+          "email": "admin_1767775733837@test.com",
+          "role": "TENANT_ADMIN"
+        }
+      }
+    },
+    "duration_ms": 386
+  },
+  {
+    "route": "/users/login",
+    "method": "POST",
+    "status": 200,
+    "success": true,
+    "data": {
+      "status": "success",
+      "message": "Login successful",
+      "data": {
+        "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjA4YmZiYTVmLThmZmEtNGU1MC1iOTE3LWQ2ZDIwNmZlNGI3OCIsImVtYWlsIjoiYWRtaW5fMTc2Nzc3NTczMzgzN0B0ZXN0LmNvbSIsInVzZXJuYW1lIjoiYWRtaW5fMTc2Nzc3NTczMzgzNyIsInVzZXJfcm9sZSI6IlRFTkFOVF9BRE1JTiIsInRlbmFudF9pZCI6bnVsbCwiYWdlbmN5X2lkIjpudWxsLCJpYXQiOjE3Njc3NzU3MzQsImV4cCI6MTc2Nzg2MjEzNH0.Jr34O19-goqiuq8ywryJZ_25z3ckbk-9zliyVxkWQoQ"
+      }
+    },
+    "duration_ms": 98
+  },
+  {
+    "route": "/tenants",
+    "method": "POST",
+    "status": 201,
+    "success": true,
+    "data": {
+      "status": "success",
+      "message": "Tenant created successfully",
+      "data": {
+        "id": "20b3a56c-803f-4080-b46b-07b2f405aed5",
+        "name": "Tenant_1767775733837",
+        "company_email": "contact_1767775733837@tenant.com",
+        "phone_number": null,
+        "country": "USA",
+        "address": null
+      }
+    },
+    "duration_ms": 71
+  },
+  {
+    "route": "/tenants/20b3a56c-803f-4080-b46b-07b2f405aed5",
+    "method": "GET",
+    "status": 200,
+    "success": true,
+    "data": {
+      "status": "success",
+      "message": "Success",
+      "data": {
+        "id": "20b3a56c-803f-4080-b46b-07b2f405aed5",
+        "name": "Tenant_1767775733837",
+        "company_email": "contact_1767775733837@tenant.com",
+        "phone_number": null,
+        "country": "USA",
+        "address": null
+      }
+    },
+    "duration_ms": 65
+  },
+  {
+    "route": "/agencies",
+    "method": "POST",
+    "status": 201,
+    "success": true,
+    "data": {
+      "status": "success",
+      "message": "Agency created successfully",
+      "data": {
+        "id": "8fee631f-9878-417b-9683-33a864736ecf",
+        "tenant_id": "20b3a56c-803f-4080-b46b-07b2f405aed5",
+        "agency_name": "Agency_1767775733837",
+        "email": "agency_1767775733837@test.com",
+        "branch_code": null,
+        "phone_number": null,
+        "alternate_phone_number": null,
+        "country": null,
+        "address_line_1": null,
+        "address_line_2": null,
+        "pincode": null,
+        "state": null,
+        "city": null
+      }
+    },
+    "duration_ms": 64
+  },
+  {
+    "route": "/agencies/8fee631f-9878-417b-9683-33a864736ecf",
+    "method": "GET",
+    "status": 200,
+    "success": true,
+    "data": {
+      "status": "success",
+      "message": "Success",
+      "data": {
+        "id": "8fee631f-9878-417b-9683-33a864736ecf",
+        "tenant_id": "20b3a56c-803f-4080-b46b-07b2f405aed5",
+        "agency_name": "Agency_1767775733837",
+        "branch_code": null,
+        "email": "agency_1767775733837@test.com",
+        "phone_number": null,
+        "alternate_phone_number": null,
+        "country": null,
+        "address_line_1": null,
+        "address_line_2": null,
+        "pincode": null,
+        "state": null,
+        "city": null
+      }
+    },
+    "duration_ms": 67
+  },
+  {
+    "route": "/users/register",
+    "method": "POST",
+    "status": 201,
+    "success": true,
+    "data": {
+      "status": "success",
+      "message": "User registered successfully",
+      "data": {
+        "user": {
+          "id": "e5242ae1-1b32-4659-8464-e65dbf3b3a4a",
+          "username": "agent_1767775733837",
+          "email": "agent_1767775733837@test.com",
+          "role": "AGENCY_EXECUTIVE"
+        }
+      }
+    },
+    "duration_ms": 139
+  },
+  {
+    "route": "/users/login",
+    "method": "POST",
+    "status": 200,
+    "success": true,
+    "data": {
+      "status": "success",
+      "message": "Login successful",
+      "data": {
+        "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImU1MjQyYWUxLTFiMzItNDY1OS04NDY0LWU2NWRiZjNiM2E0YSIsImVtYWlsIjoiYWdlbnRfMTc2Nzc3NTczMzgzN0B0ZXN0LmNvbSIsInVzZXJuYW1lIjoiYWdlbnRfMTc2Nzc3NTczMzgzNyIsInVzZXJfcm9sZSI6IkFHRU5DWV9FWEVDVVRJVkUiLCJ0ZW5hbnRfaWQiOiIyMGIzYTU2Yy04MDNmLTQwODAtYjQ2Yi0wN2IyZjQwNWFlZDUiLCJhZ2VuY3lfaWQiOiI4ZmVlNjMxZi05ODc4LTQxN2ItOTY4My0zM2E4NjQ3MzZlY2YiLCJpYXQiOjE3Njc3NzU3MzQsImV4cCI6MTc2Nzg2MjEzNH0.dDzuWA-NeUo7WCL0e_EDkrRj1ngNlBu7sHKRRocbHAc"
+      }
+    },
+    "duration_ms": 91
+  },
+  {
+    "route": "/rules",
+    "method": "POST",
+    "status": 201,
+    "success": true,
+    "data": {
+      "status": "success",
+      "message": "Rule created successfully",
+      "data": {
+        "id": "4647646e-aa5b-406c-8526-a4fc4a5e4ad8",
+        "tenant_id": null,
+        "agency_id": "8fee631f-9878-417b-9683-33a864736ecf",
+        "field_name": "policy_number",
+        "rule_type": "NOT_EMPTY",
+        "criteria": {}
+      }
+    },
+    "duration_ms": 129
+  },
+  {
+    "route": "/process",
+    "method": "POST",
+    "status": 200,
+    "success": true,
+    "data": {
+      "status": "success",
+      "message": "Processing completed successfully",
+      "data": {
+        "report": {
+          "id": "2b118c63-e851-4184-af91-a1616a65ccd2",
+          "agent_id": "e5242ae1-1b32-4659-8464-e65dbf3b3a4a",
+          "status": "PASS",
+          "extracted_data": "{\"results\":[{\"field_name\":\"policy_number\",\"extracted_value\":\"POL-123456789\",\"status\":\"MATCH\",\"rule_id\":\"4647646e-aa5b-406c-8526-a4fc4a5e4ad8\"}],\"overall_status\":\"PASS\"}",
+          "comparison_result": "[{\"field_name\":\"policy_number\",\"extracted_value\":\"POL-123456789\",\"status\":\"MATCH\",\"rule_id\":\"4647646e-aa5b-406c-8526-a4fc4a5e4ad8\"}]",
+          "pdf_path": "outputs/report_2b118c63-e851-4184-af91-a1616a65ccd2.pdf"
+        },
+        "comparison": {
+          "results": [
+            {
+              "field_name": "policy_number",
+              "extracted_value": "POL-123456789",
+              "status": "MATCH",
+              "rule_id": "4647646e-aa5b-406c-8526-a4fc4a5e4ad8"
+            }
+          ],
+          "overall_status": "PASS"
+        }
+      }
+    },
+    "duration_ms": 165
+  }
+]
