@@ -5,6 +5,7 @@ import { UserRole } from '../user/User.types';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
+import os from 'os';
 
 
 
@@ -22,9 +23,9 @@ export class ProcessRoutes {
     }
 
     private initializeStorage() {
-        const uploadDir = 'uploads/';
+        const uploadDir = path.join(os.tmpdir(), 'uploads');
         if (!fs.existsSync(uploadDir)) {
-            fs.mkdirSync(uploadDir);
+            fs.mkdirSync(uploadDir, { recursive: true });
         }
 
         const storage = multer.diskStorage({

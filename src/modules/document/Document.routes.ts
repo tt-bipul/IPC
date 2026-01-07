@@ -5,6 +5,7 @@ import { AuthMiddleware } from '../../middlewares/AuthMiddleware';
 import { UserRole } from '../user/User.types';
 import path from 'path';
 import fs from 'fs';
+import os from 'os';
 
 
 
@@ -22,9 +23,9 @@ export class DocumentRoutes {
     }
 
     private initializeStorage() {
-        const uploadDir = 'uploads/';
+        const uploadDir = path.join(os.tmpdir(), 'uploads');
         if (!fs.existsSync(uploadDir)) {
-            fs.mkdirSync(uploadDir);
+            fs.mkdirSync(uploadDir, { recursive: true });
         }
 
         const storage = multer.diskStorage({
