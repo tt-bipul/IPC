@@ -26,7 +26,7 @@ export class Application {
     }
 
     private initializeRoutes(): void {
-        this.app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs))
+        this.app.use('/swagger', swaggerUi.serve, swaggerUi.setup(specs))
         this.app.use('/', mainRouter)
     }
 
