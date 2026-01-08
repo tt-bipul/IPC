@@ -10,7 +10,7 @@ const options: swaggerJsdoc.Options = {
         },
         servers: [
             {
-                url: 'http://localhost:3000',
+                url: 'https://ipc-black.vercel.app/',
                 description: 'Local server',
             },
         ],
