@@ -103,7 +103,7 @@ const options: swaggerJsdoc.Options = {
             { name: 'Process', description: 'The process API' },
         ],
         paths: {
-            '/users/register': {
+            '/auth/register': {
                 post: {
                     summary: 'Register a new user',
                     tags: ['Users'],
@@ -124,7 +124,7 @@ const options: swaggerJsdoc.Options = {
                     },
                 },
             },
-            '/users/login': {
+            '/auth/login': {
                 post: {
                     summary: 'Log in a user',
                     tags: ['Users'],
