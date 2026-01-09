@@ -226,6 +226,17 @@ const options: swaggerJsdoc.Options = {
                     }
                 }
             },
+            '/agencies/get-all': {
+                get: {
+                    summary: 'Get all agencies',
+                    tags: ['Agencies'],
+                    security: [{ bearerAuth: [] }],
+                    responses: {
+                        200: { description: 'List of all agencies', content: { 'application/json': { schema: { type: 'array', items: { $ref: '#/components/schemas/Agency' } } } } },
+                        401: { description: 'Unauthorized' }
+                    }
+                }
+            },
             '/agencies/{id}': {
                 get: {
                     summary: 'Get agency by id',
