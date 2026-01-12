@@ -1,58 +1,175 @@
-import { UserRepository } from './User.repository';
-import { CreateUserDTO, IUser } from './User.types';
-import bcrypt from 'bcryptjs';
-import { v4 as uuidv4 } from 'uuid';
-import { AppError } from '../../core/ErrorHandler';
+import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
+import { UserRepository } from "./User.repository";
+import {
+  IUser,
+  IUserProfile,
+  IUserRole,
+  IUserPhoneNumber,
+  IUserAddress,
+  IAgency,
+} from "./User.types";
+import { AppError } from "../../core/ErrorHandler";
+import { env } from "../../config/env";
 
 export class UserService {
-    private userRepository: UserRepository;
+  private repo = new UserRepository();
 
-    constructor() {
-        this.userRepository = new UserRepository();
+  public async register(payload: {
+    username: string;
+    email: string;
+    password: string;
+    roles?: number[];
+    profile?: IUserProfile;
+    phones?: string[];
+    addresses?: { address: string; country?: string }[];
+  }): Promise<IUser> {
+    const existing = await this.repo.getUserByEmail(payload.email);
+    if (existing) {
+      throw new AppError("Email already exists", 400);
     }
 
-    public async register(userData: CreateUserDTO): Promise<IUser> {
-        const existingEmail = await this.userRepository.findByEmail(userData.email);
-        if (existingEmail) {
-            throw new AppError('User with this email already exists', 400);
-        }
+    const password_hash = await bcrypt.hash(payload.password, 10);
 
-        const existingUsername = await this.userRepository.findByUsername(userData.username);
-        if (existingUsername) {
-            throw new AppError('User with this username already exists', 400);
-        }
+    const userId = await this.repo.createUser({
+      username: payload.username,
+      email: payload.email,
+      password_hash,
+      is_active: true,
+      is_deleted: false,
+      last_login_at: null,
+      password_updated_at: null,
+    });
 
-        const hashedPassword = await bcrypt.hash(userData.password, 10);
-
-        const newUser: IUser = {
-            id: uuidv4(),
-            tenant_id: userData.tenant_id || null as any,
-            agency_id: userData.agency_id || null as any,
-            username: userData.username,
-            user_role: userData.user_role,
-            first_name: userData.first_name,
-            middle_name: userData.middle_name || null as any,
-            last_name: userData.last_name,
-            email: userData.email,
-            phone_number: userData.phone_number || null as any,
-            country: userData.country || null as any,
-            address: userData.address || null as any,
-            password_hash: hashedPassword,
-            is_active: true
-        };
-
-        await this.userRepository.create(newUser);
-        return newUser;
+    if (payload.profile) {
+      await this.repo.upsertUserProfile({
+        ...payload.profile,
+        user_id: userId,
+      });
     }
 
-    public async login(email: string, password: string): Promise<IUser> {
-        const user = await this.userRepository.findByEmail(email);
-        if (!user || !(await bcrypt.compare(password, user.password_hash))) {
-            throw new AppError('Invalid credentials', 401);
-        }
-        if (!user.is_active) {
-            throw new AppError('User is inactive', 403);
-        }
-        return user;
+    if (payload.roles) {
+      for (const roleId of payload.roles) {
+        await this.repo.assignRole({ user_id: userId, role_id: roleId });
+      }
     }
+
+    if (payload.phones) {
+      for (const phone of payload.phones) {
+        await this.repo.addUserPhone({
+          user_id: userId,
+          phone_number: phone,
+        });
+      }
+    }
+
+    if (payload.addresses) {
+      for (const addr of payload.addresses) {
+        await this.repo.addUserAddress({
+          user_id: userId,
+          address: addr.address,
+          country: addr.country,
+        });
+      }
+    }
+
+    const user = await this.repo.getUserById(userId);
+    if (!user) {
+      throw new AppError("User creation failed", 500);
+    }
+
+    return user;
+  }
+
+  public async login(email: string, password: string) {
+    const user = await this.repo.getUserByEmail(email);
+    if (!user) {
+      throw new AppError("Invalid credentials", 401);
+    }
+
+    if (!user.is_active || user.is_deleted) {
+      throw new AppError("User is inactive or deleted", 403);
+    }
+
+    const valid = await bcrypt.compare(password, user.password_hash);
+    if (!valid) {
+      throw new AppError("Invalid credentials", 401);
+    }
+
+    const token = jwt.sign({ id: user.id, email: user.email }, env.jwtSecret, {
+      expiresIn: "1d",
+    });
+
+    return { user, token };
+  }
+
+  public async getUserById(id: string): Promise<IUser> {
+    const user = await this.repo.getUserById(id);
+    if (!user) {
+      throw new AppError("User not found", 404);
+    }
+    return user;
+  }
+
+  public async updateUser(
+    id: string,
+    payload: Partial<IUser> & { profile?: IUserProfile }
+  ): Promise<void> {
+    const user = await this.repo.getUserById(id);
+    if (!user) {
+      throw new AppError("User not found", 404);
+    }
+
+    await this.repo.updateUser(id, payload);
+
+    if (payload.profile) {
+      await this.repo.upsertUserProfile({
+        ...payload.profile,
+        user_id: id,
+      });
+    }
+  }
+
+  public async deleteUser(id: string): Promise<void> {
+    const user = await this.repo.getUserById(id);
+    if (!user) {
+      throw new AppError("User not found", 404);
+    }
+    await this.repo.deleteUser(id);
+  }
+
+  public async createAgency(
+    payload: Omit<IAgency, "id" | "created_at" | "updated_at">
+  ) {
+    return this.repo.createAgency(payload);
+  }
+
+  public async updateAgency(id: string, payload: Partial<IAgency>) {
+    await this.repo.updateAgency(id, payload);
+  }
+
+  public async deleteAgency(id: string) {
+    await this.repo.deleteAgency(id);
+  }
+
+  public async createRole(code: string): Promise<number> {
+    if (!code) {
+      throw new AppError("Role code is required", 400);
+    }
+    return this.repo.createRole(code);
+  }
+
+  public async assignRole(data: IUserRole): Promise<void> {
+    if (!data.user_id || !data.role_id) {
+      throw new AppError("user_id and role_id are required", 400);
+    }
+    await this.repo.assignRole(data);
+  }
+
+  public async removeRole(data: IUserRole): Promise<void> {
+    if (!data.user_id || !data.role_id) {
+      throw new AppError("user_id and role_id are required", 400);
+    }
+    await this.repo.removeRole(data);
+  }
 }

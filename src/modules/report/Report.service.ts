@@ -24,7 +24,10 @@ export class ReportService {
             status: comparison.overall_status,
             extracted_data: JSON.stringify(comparison),
             comparison_result: JSON.stringify(comparison.results),
-            pdf_path: pdfPath
+            pdf_path: pdfPath,
+            tenant_id: '',
+            agency_id: '',
+            version: 0
         };
 
         await this.reportRepository.create(newReport);

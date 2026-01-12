@@ -15,15 +15,30 @@ export class AgencyService {
       tenant_id: data.tenant_id,
       agency_name: data.agency_name,
       email: data.email,
-      branch_code: data.branch_code || (null as any),
-      phone_number: data.phone_number || (null as any),
-      alternate_phone_number: data.alternate_phone_number || (null as any),
-      country: data.country || (null as any),
-      address_line_1: data.address_line_1 || (null as any),
-      address_line_2: data.address_line_2 || (null as any),
-      pincode: data.pincode || (null as any),
-      state: data.state || (null as any),
-      city: data.city || (null as any),
+      branch_code: data.branch_code,
+      phone_number: data.phone_number,
+      is_active: true,
+      vp_user_id: data.vp_user_id,
+
+      
+      contacts: data.contacts?.map(c => ({
+        name: c.name,
+        email: c.email,
+        phone_number: c.phone_number,
+        designation: c.designation,
+        is_primary: c.is_primary
+      })),
+
+      
+      addresses: data.addresses?.map(a => ({
+        address_line_1: a.address_line_1,
+        address_line_2: a.address_line_2,
+        city: a.city,
+        state: a.state,
+        country: a.country,
+        pincode: a.pincode,
+        type: a.type
+      }))
     };
     await this.agencyRepository.create(newAgency);
     return newAgency;

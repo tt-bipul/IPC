@@ -2,12 +2,13 @@ import { Request, Response, NextFunction } from "express";
 import { AgencyService } from "./Agency.service";
 import { ApiResponse } from "../../utils/ApiResponse";
 import { asyncHandler } from "../../utils/AsyncHandler";
+import { AppError } from "../../core/ErrorHandler";
 
 export class AgencyController {
   private agencyService: AgencyService;
 
-  constructor() {
-    this.agencyService = new AgencyService();
+  constructor(agencyService?: AgencyService) {
+    this.agencyService = agencyService || new AgencyService();
   }
 
   public create = asyncHandler(
@@ -35,9 +36,17 @@ export class AgencyController {
       ApiResponse.success(res, agencies);
     }
   );
-  
+
   public getById = asyncHandler(
     async (req: Request, res: Response, next: NextFunction) => {
+      const user = (req as any).user;
+      const userRoles = user?.roles || [];
+      if (
+        userRoles.includes("VP") &&
+        user.vp_agency_id !== req.params.id
+      ) {
+        return next(new AppError("You do not have permission to view this agency", 403));
+      }
       const agency = await this.agencyService.getAgencyById(req.params.id);
       if (!agency) {
         ApiResponse.error(res, "Agency not found", 404);

@@ -17,28 +17,28 @@ export class AgencyRoutes {
     this.router.post(
       "/",
       AuthMiddleware.authenticate,
-      AuthMiddleware.restrictTo([UserRole.TENANT_ADMIN]),
+      AuthMiddleware.restrictTo([UserRole.SUPER_ADMIN]),
       this.agencyController.create
     );
 
     this.router.get(
       "/tenant/:tenantId",
       AuthMiddleware.authenticate,
-      AuthMiddleware.restrictTo([UserRole.TENANT_ADMIN]),
+      AuthMiddleware.restrictTo([UserRole.SUPER_ADMIN]),
       this.agencyController.getByTenant
     );
 
     this.router.get(
       "/:id",
       AuthMiddleware.authenticate,
-      AuthMiddleware.restrictTo([UserRole.TENANT_ADMIN, UserRole.VP]),
+      AuthMiddleware.restrictTo([UserRole.VP]),
       this.agencyController.getById
     );
 
     this.router.get(
       "/get-all",
       AuthMiddleware.authenticate,
-      AuthMiddleware.restrictTo([UserRole.TENANT_ADMIN]),
+      AuthMiddleware.restrictTo([UserRole.SUPER_ADMIN]),
       this.agencyController.getAllAgencies
     );
   }
