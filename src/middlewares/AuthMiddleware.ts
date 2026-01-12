@@ -51,11 +51,6 @@ export class AuthMiddleware {
     };
   }
 
-  /**
-   * Middleware to enforce that a user can only access resources belonging to their Tenant.
-   * SUPER_ADMIN bypasses this check.
-   * Expects tenantId in req.params or req.body or req.query
-   */
   public static requireTenantAccess(paramName: string = "tenantId") {
     return (req: AuthRequest, res: Response, next: NextFunction) => {
       const user = req.user;
@@ -131,4 +126,47 @@ export class AuthMiddleware {
       next();
     };
   }
+
+  static EnforceStrictnessForNonSuperAdmin() {
+    return (req: AuthRequest, res: Response, next: NextFunction) => {
+      const user = req.user;
+      if (!user) return next(new AppError("Not authenticated", 401));
+
+      const roles = Array.isArray(user.roles) ? user.roles : [];
+      if (roles.includes("SUPER_ADMIN")) return next();
+
+      if (!req.body || typeof req.body !== "object" || Array.isArray(req.body)) {
+        return next(new AppError("Invalid request body", 400));
+      }
+
+      const allowedKeys = ["username", "email", "password"];
+      const bodyKeys = Object.keys(req.body);
+
+      if (bodyKeys.length !== allowedKeys.length) {
+        return next(new AppError("Invalid request payload", 400));
+      }
+
+      for (const key of bodyKeys) {
+        if (!allowedKeys.includes(key)) {
+          return next(new AppError("Invalid request payload", 400));
+        }
+      }
+
+      const { username, email, password } = req.body;
+
+      if (
+        typeof username !== "string" ||
+        typeof email !== "string" ||
+        typeof password !== "string" ||
+        !username.trim() ||
+        !email.trim() ||
+        !password.trim()
+      ) {
+        return next(new AppError("Invalid request payload", 400));
+      }
+
+      next();
+    };
+  }
+
 }

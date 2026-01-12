@@ -8,9 +8,11 @@ import {
   IUserPhoneNumber,
   IUserAddress,
   IAgency,
+  ICreateAgencyPayload,
 } from "./User.types";
 import { AppError } from "../../core/ErrorHandler";
 import { env } from "../../config/env";
+import { UserRole } from "./User.types";
 
 export class UserService {
   private repo = new UserRepository();
@@ -23,7 +25,7 @@ export class UserService {
     profile?: IUserProfile;
     phones?: string[];
     addresses?: { address: string; country?: string }[];
-  }): Promise<IUser> {
+  }, currentUser?: { id: string; roles: string[] }): Promise<IUser> {
     const existing = await this.repo.getUserByEmail(payload.email);
     if (existing) {
       throw new AppError("Email already exists", 400);
@@ -73,6 +75,22 @@ export class UserService {
       }
     }
 
+    if (currentUser?.roles?.includes(UserRole.VP)) {
+      const agency = await this.repo.getAgencyByVpId(currentUser.id);
+      if (agency) {
+        await this.repo.createUserAgency({
+          user_id: userId,
+          agency_id: agency.agency_id,
+          is_active: true,
+          assigned_at: new Date(),
+        });
+      }
+      const getRole = await this.repo.getRole("AGENT")
+      if (getRole) {
+        await this.repo.assignRole({ user_id: userId, role_id: getRole.id });
+      }
+    }
+
     const user = await this.repo.getUserById(userId);
     if (!user) {
       throw new AppError("User creation failed", 500);
@@ -96,9 +114,18 @@ export class UserService {
       throw new AppError("Invalid credentials", 401);
     }
 
-    const token = jwt.sign({ id: user.id, email: user.email }, env.jwtSecret, {
-      expiresIn: "1d",
-    });
+    const roles = await this.repo.getUserRoles(user.id);
+
+    const token = jwt.sign(
+      { id: user.id, email: user.email, roles },
+      env.jwtSecret,
+      {
+        expiresIn: "1d",
+      }
+    );
+
+    // Update last login timestamp
+    await this.repo.updateUser(user.id, { last_login_at: new Date() });
 
     return { user, token };
   }
@@ -120,11 +147,14 @@ export class UserService {
       throw new AppError("User not found", 404);
     }
 
-    await this.repo.updateUser(id, payload);
+    const { profile, ...userData } = payload;
+    if (Object.keys(userData).length > 0) {
+      await this.repo.updateUser(id, userData);
+    }
 
-    if (payload.profile) {
+    if (profile) {
       await this.repo.upsertUserProfile({
-        ...payload.profile,
+        ...profile,
         user_id: id,
       });
     }
@@ -138,10 +168,40 @@ export class UserService {
     await this.repo.deleteUser(id);
   }
 
-  public async createAgency(
-    payload: Omit<IAgency, "id" | "created_at" | "updated_at">
-  ) {
-    return this.repo.createAgency(payload);
+  public async createAgency(payload: ICreateAgencyPayload) {
+    const agencyId = await this.repo.createAgency({
+      agency_name: payload.agency_name,
+      branch_code: payload.branch_code,
+      vp_user_id: payload.vp_user_id,
+      is_active: payload.is_active ?? true,
+    });
+
+    if (payload.addresses) {
+      for (const addr of payload.addresses) {
+        const locationId = await this.repo.createLocation(addr.location);
+        const addressId = await this.repo.createAddress({
+          address_line_1: addr.address_line_1,
+          address_line_2: addr.address_line_2,
+          location_id: locationId,
+        });
+        await this.repo.linkAgencyAddress({
+          agency_id: agencyId,
+          address_id: addressId,
+        });
+      }
+    }
+
+    if (payload.contacts) {
+      for (const contact of payload.contacts) {
+        const contactId = await this.repo.createContact(contact);
+        await this.repo.linkAgencyContact({
+          agency_id: agencyId,
+          contact_id: contactId,
+        });
+      }
+    }
+
+    return agencyId;
   }
 
   public async updateAgency(id: string, payload: Partial<IAgency>) {
@@ -171,5 +231,28 @@ export class UserService {
       throw new AppError("user_id and role_id are required", 400);
     }
     await this.repo.removeRole(data);
+  }
+
+  public async assignUserToAgency(userId: string, agencyId: string): Promise<void> {
+    await this.repo.createUserAgency({
+      user_id: userId,
+      agency_id: agencyId,
+      is_active: true,
+      assigned_at: new Date(),
+    });
+  }
+
+  public async removeUserFromAgency(userId: string, agencyId: string): Promise<void> {
+    await this.repo.deleteUserAgency(userId, agencyId);
+  }
+
+  public async getAllUsers(currentUser: { id: string; roles: string[] }): Promise<IUser[]> {
+    if (currentUser.roles.includes(UserRole.SUPER_ADMIN)) {
+      return this.repo.getAllUsers();
+    } else if (currentUser.roles.includes(UserRole.VP)) {
+      return this.repo.getUsersByVpId(currentUser.id);
+    } else {
+      throw new AppError("Access denied", 403);
+    }
   }
 }

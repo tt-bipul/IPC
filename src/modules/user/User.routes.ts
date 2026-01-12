@@ -15,8 +15,10 @@ export class UserRoutes {
   private initializeRoutes() {
     this.router.post(
       "/register",
-      // AuthMiddleware.authenticate,
+      AuthMiddleware.authenticate,
+      AuthMiddleware.restrictTo(["SUPER_ADMIN", "VP"]),
       AuthMiddleware.ValidateRequestBody({ required: true, type: "json" }),
+      AuthMiddleware.EnforceStrictnessForNonSuperAdmin(),
       this.controller.register
     );
 
@@ -24,6 +26,13 @@ export class UserRoutes {
       "/login",
       AuthMiddleware.ValidateRequestBody({ required: true, type: "json" }),
       this.controller.login
+    );
+
+    this.router.get(
+      "/",
+      AuthMiddleware.authenticate,
+      AuthMiddleware.restrictTo(["SUPER_ADMIN", "VP"]),
+      this.controller.getAllUsers
     );
 
     this.router.get(
@@ -48,6 +57,7 @@ export class UserRoutes {
     this.router.post(
       "/agency",
       AuthMiddleware.authenticate,
+      AuthMiddleware.restrictTo(["SUPER_ADMIN"]),
       AuthMiddleware.ValidateRequestBody({ required: true, type: "json" }),
       this.controller.createAgency
     );
@@ -55,6 +65,7 @@ export class UserRoutes {
     this.router.put(
       "/agency/:id",
       AuthMiddleware.authenticate,
+      AuthMiddleware.restrictTo(["SUPER_ADMIN", "VP"]),
       AuthMiddleware.ValidateRequestBody({ required: true, type: "json" }),
       this.controller.updateAgency
     );
@@ -62,12 +73,14 @@ export class UserRoutes {
     this.router.delete(
       "/agency/:id",
       AuthMiddleware.authenticate,
+      AuthMiddleware.restrictTo(["SUPER_ADMIN"]),
       this.controller.deleteAgency
     );
 
     this.router.post(
       "/roles",
-      // AuthMiddleware.authenticate,
+      AuthMiddleware.authenticate,
+      AuthMiddleware.restrictTo(["SUPER_ADMIN"]),
       AuthMiddleware.ValidateRequestBody({ required: true, type: "json" }),
       this.controller.createRole
     );
@@ -75,6 +88,7 @@ export class UserRoutes {
     this.router.post(
       "/roles/assign",
       AuthMiddleware.authenticate,
+      AuthMiddleware.restrictTo(["SUPER_ADMIN"]),
       AuthMiddleware.ValidateRequestBody({ required: true, type: "json" }),
       this.controller.assignRole
     );
@@ -82,8 +96,24 @@ export class UserRoutes {
     this.router.post(
       "/roles/remove",
       AuthMiddleware.authenticate,
+      AuthMiddleware.restrictTo(["SUPER_ADMIN"]),
       AuthMiddleware.ValidateRequestBody({ required: true, type: "json" }),
       this.controller.removeRole
+    );
+    this.router.post(
+      "/user-agencies",
+      AuthMiddleware.authenticate,
+      AuthMiddleware.restrictTo(["SUPER_ADMIN"]),
+      AuthMiddleware.ValidateRequestBody({ required: true, type: "json" }),
+      this.controller.assignUserToAgency
+    );
+
+    this.router.delete(
+      "/user-agencies",
+      AuthMiddleware.authenticate,
+      AuthMiddleware.restrictTo(["SUPER_ADMIN"]),
+      AuthMiddleware.ValidateRequestBody({ required: true, type: "json" }),
+      this.controller.removeUserFromAgency
     );
   }
 }

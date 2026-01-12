@@ -189,4 +189,21 @@ CREATE TABLE agency_contacts (
     ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+CREATE TABLE user_agencies (
+  user_id CHAR(36) NOT NULL,
+  agency_id CHAR(36) NOT NULL,
+  is_active TINYINT(1) NOT NULL DEFAULT 1,
+  assigned_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (user_id, agency_id),
+  KEY idx_user_agencies_user (user_id),
+  KEY idx_user_agencies_agency (agency_id),
+  FOREIGN KEY (user_id) REFERENCES users(id)
+    ON DELETE CASCADE
+    ON UPDATE CASCADE,
+  FOREIGN KEY (agency_id) REFERENCES agencies(id)
+    ON DELETE CASCADE
+    ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+
 SET FOREIGN_KEY_CHECKS = 1;
