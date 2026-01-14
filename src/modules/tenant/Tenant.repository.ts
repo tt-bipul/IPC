@@ -23,7 +23,8 @@ export class TenantRepository {
 
   public async findAll(): Promise<ITenant[]> {
     const tenants = await this.db.query<ITenant[] & RowDataPacket[]>(
-      "SELECT * FROM tenants"
+      "SELECT * FROM tenants",
+      []
     );
     return tenants;
   }

@@ -8,7 +8,6 @@ export class ApiResponse {
             data,
         });
     }
-
     public static error(res: Response, message: string = 'Error', statusCode: number = 500): void {
         res.status(statusCode).json({
             status: 'error',

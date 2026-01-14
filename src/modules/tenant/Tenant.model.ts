@@ -7,6 +7,7 @@ export class Tenant implements ITenant {
     phone_number?: string;
     country?: string;
     address?: string;
+    is_active: boolean;
 
     constructor(data: ITenant) {
         this.id = data.id;
@@ -15,5 +16,6 @@ export class Tenant implements ITenant {
         this.phone_number = data.phone_number;
         this.country = data.country;
         this.address = data.address;
+        this.is_active = data.is_active;
     }
 }

@@ -5,54 +5,40 @@ import { asyncHandler } from "../../utils/AsyncHandler";
 import { AppError } from "../../core/ErrorHandler";
 
 export class AgencyController {
-  private agencyService: AgencyService;
+  private service: AgencyService;
 
   constructor(agencyService?: AgencyService) {
-    this.agencyService = agencyService || new AgencyService();
+    this.service = agencyService || new AgencyService();
   }
 
-  public create = asyncHandler(
-    async (req: Request, res: Response, next: NextFunction) => {
-      const agency = await this.agencyService.createAgency(req.body);
-      ApiResponse.success(res, agency, "Agency created successfully", 201);
+  public createAgency = asyncHandler(async (req: Request, res: Response) => {
+    const id = await this.service.createAgency(req.body);
+    ApiResponse.success(res, { id }, "Agency created", 201);
+  });
+
+  public updateAgency = asyncHandler(async (req: Request, res: Response) => {
+    await this.service.updateAgency(req.params.id, req.body);
+    ApiResponse.success(res, null, "Agency updated");
+  });
+
+  public deleteAgency = asyncHandler(async (req: Request, res: Response) => {
+    await this.service.deleteAgency(req.params.id);
+    ApiResponse.success(res, null, "Agency deleted");
+  });
+
+  public assignUserToAgency = asyncHandler(
+    async (req: Request, res: Response) => {
+      const { user_id, agency_id } = req.body;
+      await this.service.assignUserToAgency(user_id, agency_id);
+      ApiResponse.success(res, null, "User assigned to agency");
     }
   );
 
-  public getByTenant = asyncHandler(
-    async (req: Request, res: Response, next: NextFunction) => {
-      const agencies = await this.agencyService.getAgenciesByTenant(
-        req.params.tenantId
-      );
-      ApiResponse.success(res, agencies);
-    }
-  );
-
-  public getAllAgencies = asyncHandler(
-    async (req: Request, res: Response, next: NextFunction) => {
-      const agencies = await this.agencyService.getAllAgencies();
-      if (!agencies) {
-        ApiResponse.error(res, "No agencies found", 404);
-      }
-      ApiResponse.success(res, agencies);
-    }
-  );
-
-  public getById = asyncHandler(
-    async (req: Request, res: Response, next: NextFunction) => {
-      const user = (req as any).user;
-      const userRoles = user?.roles || [];
-      if (
-        userRoles.includes("VP") &&
-        user.vp_agency_id !== req.params.id
-      ) {
-        return next(new AppError("You do not have permission to view this agency", 403));
-      }
-      const agency = await this.agencyService.getAgencyById(req.params.id);
-      if (!agency) {
-        ApiResponse.error(res, "Agency not found", 404);
-        return;
-      }
-      ApiResponse.success(res, agency);
+  public removeUserFromAgency = asyncHandler(
+    async (req: Request, res: Response) => {
+      const { user_id, agency_id } = req.body;
+      await this.service.removeUserFromAgency(user_id, agency_id);
+      ApiResponse.success(res, null, "User removed from agency");
     }
   );
 }

