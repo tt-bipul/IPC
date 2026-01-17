@@ -139,30 +139,36 @@ export class AuthMiddleware {
         return next(new AppError("Invalid request body", 400));
       }
 
-      const allowedKeys = ["username", "email", "password"];
+      const allowedKeys = ["username", "email", "password", "profile", "phones", "addresses"];
       const bodyKeys = Object.keys(req.body);
 
-      if (bodyKeys.length !== allowedKeys.length) {
-        return next(new AppError("Invalid request payload", 400));
-      }
-
-      for (const key of bodyKeys) {
-        if (!allowedKeys.includes(key)) {
-          return next(new AppError("Invalid request payload", 400));
-        }
+      // Check for extra keys
+      const extraKeys = bodyKeys.filter(key => !allowedKeys.includes(key));
+      if (extraKeys.length > 0) {
+        return next(
+          new AppError(
+            `Invalid request payload. The following fields are not allowed for your role: ${extraKeys.join(", ")}`,
+            400
+          )
+        );
       }
 
       const { username, email, password } = req.body;
 
-      if (
-        typeof username !== "string" ||
-        typeof email !== "string" ||
-        typeof password !== "string" ||
-        !username.trim() ||
-        !email.trim() ||
-        !password.trim()
-      ) {
-        return next(new AppError("Invalid request payload", 400));
+      // Validate required fields and types
+      const errors: string[] = [];
+      if (typeof username !== "string" || !username.trim()) {
+        errors.push("username must be a non-empty string");
+      }
+      if (typeof email !== "string" || !email.trim()) {
+        errors.push("email must be a non-empty string");
+      }
+      if (typeof password !== "string" || !password.trim()) {
+        errors.push("password must be a non-empty string");
+      }
+
+      if (errors.length > 0) {
+        return next(new AppError(`Invalid request payload: ${errors.join(", ")}`, 400));
       }
 
       next();

@@ -31,5 +31,39 @@ export class RoleRoutes {
             AuthMiddleware.restrictTo([UserRole.SUPER_ADMIN]),
             this.roleController.getRole
         );
+
+        this.router.put(
+            "/:id",
+            AuthMiddleware.authenticate,
+            AuthMiddleware.restrictTo([UserRole.SUPER_ADMIN]),
+            AuthMiddleware.ValidateRequestBody({
+                required: true,
+                type: "json",
+            }),
+            this.roleController.updateRole
+        );
+
+
+        this.router.post(
+            "/assign",
+            AuthMiddleware.authenticate,
+            AuthMiddleware.restrictTo([UserRole.SUPER_ADMIN]),
+            AuthMiddleware.ValidateRequestBody({
+                required: true,
+                type: "json",
+            }),
+            this.roleController.assignRole
+        );
+
+        this.router.post(
+            "/remove",
+            AuthMiddleware.authenticate,
+            AuthMiddleware.restrictTo([UserRole.SUPER_ADMIN]),
+            AuthMiddleware.ValidateRequestBody({
+                required: true,
+                type: "json",
+            }),
+            this.roleController.removeRole
+        );
     }
 }

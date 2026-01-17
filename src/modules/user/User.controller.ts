@@ -52,24 +52,6 @@ export class UserController {
     ApiResponse.success(res, null, "User deleted");
   });
 
-  public createRole = asyncHandler(async (req: Request, res: Response) => {
-    const { code } = req.body;
-    const roleId = await this.service.createRole(code);
-    ApiResponse.success(res, { role_id: roleId }, "Role created", 201);
-  });
-
-  public assignRole = asyncHandler(async (req: Request, res: Response) => {
-    const { user_id, role_id } = req.body;
-    await this.service.assignRole({ user_id, role_id });
-    ApiResponse.success(res, null, "Role assigned");
-  });
-
-  public removeRole = asyncHandler(async (req: Request, res: Response) => {
-    const { user_id, role_id } = req.body;
-    await this.service.removeRole({ user_id, role_id });
-    ApiResponse.success(res, null, "Role removed");
-  });
-
   public getAllUsers = asyncHandler(async (req: any, res: Response) => {
     const users = await this.service.getAllUsers(req.user);
     ApiResponse.success(res, users.map(sanitizeUser));

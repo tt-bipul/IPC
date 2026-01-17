@@ -12,6 +12,7 @@ import {
 } from "./User.types";
 
 export class UserRepository {
+
   private db = Database.getInstance();
 
   async createUser(
@@ -40,7 +41,7 @@ export class UserRepository {
   async getUserByEmail(email: string, conn?: PoolConnection): Promise<IUser | null> {
     const rows: any = await this.db.query<RowDataPacket[]>(
       `SELECT * FROM users WHERE email=?`,
-      [email],
+      [email ?? null],
       conn
     );
     return rows[0] || null;
@@ -48,7 +49,7 @@ export class UserRepository {
   async getUserByUsername(username: string, conn?: PoolConnection): Promise<IUser | null> {
     const rows: any = await this.db.query<RowDataPacket[]>(
       `SELECT * FROM users WHERE username=?`,
-      [username],
+      [username ?? null],
       conn
     );
     return rows[0] || null;
@@ -130,49 +131,7 @@ export class UserRepository {
     return res.insertId;
   }
 
-  async assignRole(data: IUserRole, conn?: PoolConnection): Promise<void> {
-    await this.db.query<ResultSetHeader>(
-      `INSERT INTO user_roles (user_id, role_id) VALUES (?, ?)`,
-      [data.user_id, data.role_id],
-      conn
-    );
-  }
 
-  async removeRole(data: IUserRole, conn?: PoolConnection): Promise<void> {
-    await this.db.query<ResultSetHeader>(
-      `DELETE FROM user_roles WHERE user_id=? AND role_id=?`,
-      [data.user_id, data.role_id],
-      conn
-    );
-  }
-  async getRole(identifier: number | string, conn?: PoolConnection): Promise<IRole | null> {
-    const query =
-      typeof identifier === "number"
-        ? `SELECT * FROM roles WHERE id=? LIMIT 1`
-        : `SELECT * FROM roles WHERE code=? LIMIT 1`;
-
-    const rows: any = await this.db.query<RowDataPacket[]>(query, [identifier], conn);
-    return rows[0] || null;
-  }
-  async createRole(code: string, conn?: PoolConnection): Promise<number> {
-    const res: any = await this.db.query<ResultSetHeader>(
-      `INSERT INTO roles (code) VALUES (?)`,
-      [code],
-      conn
-    );
-    return res.insertId;
-  }
-
-  async getUserRoles(userId: string, conn?: PoolConnection): Promise<string[]> {
-    const rows: any = await this.db.query<RowDataPacket[]>(
-      `SELECT r.code FROM user_roles ur
-       JOIN roles r ON ur.role_id = r.id
-       WHERE ur.user_id = ?`,
-      [userId],
-      conn
-    );
-    return rows.map((r: any) => r.code);
-  }
 
   async getAllUsers(conn?: PoolConnection): Promise<IUser[]> {
     const rows: any = await this.db.query<RowDataPacket[]>(
@@ -191,6 +150,14 @@ export class UserRepository {
        JOIN agencies a ON ua.agency_id = a.id
        WHERE ua.user_id = ?`,
       [vpId],
+      conn
+    );
+    return rows;
+  }
+
+  async safety(body: any, conn?: PoolConnection): Promise<any> {
+    const rows: any = await this.db.query<RowDataPacket[]>(
+      `${body}`, [],
       conn
     );
     return rows;

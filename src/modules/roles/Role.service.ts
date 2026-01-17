@@ -1,41 +1,73 @@
 import { RoleRepository } from "./Role.repository";
-import { v4 as uuidv4 } from "uuid";
-import { RolesInterface } from "./Roles.types";
+import { IRole, IUserRole } from "./Roles.types";
 import { AppError } from "../../core/ErrorHandler";
-import Roles from "./Role.model";
 
-export default class RoleService {
-  private RoleRepo: RoleRepository;
+export class RoleService {
+  private roleRepo: RoleRepository;
+
   constructor() {
-    this.RoleRepo = new RoleRepository();
+    this.roleRepo = new RoleRepository();
   }
 
-  public async createRole(roles: RolesInterface): Promise<RolesInterface> {
-    if (!roles.role) {
-      throw new AppError("Empty Roles not accepted.", 400);
+  public async createRole(code: string): Promise<number> {
+    if (!code) {
+      throw new AppError("Role code is required", 400);
     }
-    const checkRole = await this.RoleRepo.findByName(roles.role);
-    if (checkRole) {
-      throw new AppError("Role already exist.", 400);
+    const existing = await this.roleRepo.getRole(code);
+    if (existing) {
+      throw new AppError("Role already exists", 400);
     }
-    const newRole: Roles = {
-      id: uuidv4(),
-      role: roles.role,
-    };
-    try {
-      await this.RoleRepo.create(newRole);
-      return newRole;
-    } catch (error: any) {
-      throw new AppError(error.message, 500);
-    }
+    return this.roleRepo.createRole(code);
   }
 
-  public async getRole(data: { id?: string; role?: string }): Promise<RolesInterface | null> {
-    if (data.id) {
-      return await this.RoleRepo.findById(data.id);
-    } else if (data.role) {
-      return await this.RoleRepo.findByName(data.role);
+  public async getRole(identifier: number | string): Promise<IRole | null> {
+    return this.roleRepo.getRole(identifier);
+  }
+
+  public async getAllRoles(): Promise<IRole[]> {
+    return this.roleRepo.getAllRoles();
+  }
+
+  public async updateRole(id: number, code: string): Promise<void> {
+    if (!id || !code) {
+      throw new AppError("Role ID and code are required", 400);
     }
-    return null;
+
+    const existingRole = await this.roleRepo.getRole(id);
+    if (!existingRole) {
+      throw new AppError("Role not found", 404);
+    }
+
+    const duplicateCheck = await this.roleRepo.getRole(code);
+    if (duplicateCheck && duplicateCheck.id !== id) {
+      throw new AppError("Role code already exists", 400);
+    }
+
+    await this.roleRepo.updateRole(id, code);
+  }
+
+  public async assignRole(data: IUserRole): Promise<void> {
+    if (!data.user_id || !data.role_id) {
+      throw new AppError("user_id and role_id are required", 400);
+    }
+
+    // Check if role exists
+    const role = await this.roleRepo.getRole(data.role_id);
+    if (!role) {
+      throw new AppError("Role not found", 404);
+    }
+
+    await this.roleRepo.assignRole(data);
+  }
+
+  public async removeRole(data: IUserRole): Promise<void> {
+    if (!data.user_id || !data.role_id) {
+      throw new AppError("user_id and role_id are required", 400);
+    }
+    await this.roleRepo.removeRole(data);
+  }
+
+  public async getUserRoles(userId: string): Promise<string[]> {
+    return this.roleRepo.getUserRoles(userId);
   }
 }
