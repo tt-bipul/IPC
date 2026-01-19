@@ -1,26 +1,37 @@
-import nodemailer from 'nodemailer';
-import { Logger } from '../core/Logger';
+import nodemailer from "nodemailer";
+import { env } from "../config/env";
 
-export class EmailService {
-    private transporter: nodemailer.Transporter;
+const transporter = nodemailer.createTransport({
+  host: "smtp.gmail.com",
+  port: 465,
+  secure: true,
+  auth: {
+    user: env.EMAIL_USER,
+    pass: env.EMAIL_PASS,
+  },
+});
 
-    constructor() {
-        this.transporter = nodemailer.createTransport({
-            host: 'smtp.gmail.com',
-            port: 587,
-            secure: false,
-            auth: {
-                user: 'test@example.com',
-                pass: 'password'
-            }
-        });
-    }
+export const sendMail = async (
+  to: string,
+  subject: string,
+  text: string,
+  html?: string,
+) => {
+  try {
+    const info = await transporter.sendMail({
+      from: `"My App" <${env.EMAIL_USER}>`,
+      to,
+      subject,
+      text,
+      html,
+    });
 
-    public async sendReport(to: string, pdfPath: string): Promise<void> {
-        try {
-            Logger.info(`MOCK EMAIL: Sending report to ${to} with attachment ${pdfPath}`);
-        } catch (error) {
-            Logger.error('Failed to send email', error);
-        }
-    }
-}
+    console.log("✅ Email sent:", info.messageId);
+    return info;
+  } catch (err) {
+    console.error("❌ Error sending email:", err);
+    throw err;
+  }
+};
+
+

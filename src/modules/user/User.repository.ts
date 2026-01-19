@@ -12,12 +12,11 @@ import {
 } from "./User.types";
 
 export class UserRepository {
-
   private db = Database.getInstance();
 
   async createUser(
     data: Omit<IUser, "id" | "created_at" | "updated_at">,
-    conn?: PoolConnection
+    conn?: PoolConnection,
   ): Promise<string> {
     const id = uuidv4();
     await this.db.query<ResultSetHeader>(
@@ -33,24 +32,30 @@ export class UserRepository {
         data.last_login_at ?? null,
         data.password_updated_at ?? null,
       ],
-      conn
+      conn,
     );
     return id;
   }
 
-  async getUserByEmail(email: string, conn?: PoolConnection): Promise<IUser | null> {
+  async getUserByEmail(
+    email: string,
+    conn?: PoolConnection,
+  ): Promise<IUser | null> {
     const rows: any = await this.db.query<RowDataPacket[]>(
       `SELECT * FROM users WHERE email=?`,
       [email ?? null],
-      conn
+      conn,
     );
     return rows[0] || null;
   }
-  async getUserByUsername(username: string, conn?: PoolConnection): Promise<IUser | null> {
+  async getUserByUsername(
+    username: string,
+    conn?: PoolConnection,
+  ): Promise<IUser | null> {
     const rows: any = await this.db.query<RowDataPacket[]>(
       `SELECT * FROM users WHERE username=?`,
       [username ?? null],
-      conn
+      conn,
     );
     return rows[0] || null;
   }
@@ -58,7 +63,7 @@ export class UserRepository {
     const rows: any = await this.db.query<RowDataPacket[]>(
       `SELECT * FROM users WHERE id = ?`,
       [id],
-      conn
+      conn,
     );
     return rows[0] || null;
   }
@@ -66,7 +71,7 @@ export class UserRepository {
   async updateUser(
     id: string,
     data: Partial<IUser>,
-    conn?: PoolConnection
+    conn?: PoolConnection,
   ): Promise<void> {
     const keys = Object.keys(data);
     if (keys.length === 0) return;
@@ -77,7 +82,7 @@ export class UserRepository {
     await this.db.query<ResultSetHeader>(
       `UPDATE users SET ${setClauses} WHERE id=?`,
       [...values, id],
-      conn
+      conn,
     );
   }
 
@@ -85,59 +90,70 @@ export class UserRepository {
     await this.db.query<ResultSetHeader>(
       `DELETE FROM users WHERE id = ?`,
       [id],
-      conn
+      conn,
     );
   }
 
-  async upsertUserProfile(data: IUserProfile, conn?: PoolConnection): Promise<void> {
+  async upsertUserProfile(
+    data: IUserProfile,
+    conn?: PoolConnection,
+  ): Promise<void> {
     await this.db.query<ResultSetHeader>(
       `INSERT INTO user_profiles (user_id, first_name, middle_name, last_name)
        VALUES (?, ?, ?, ?)
        ON DUPLICATE KEY UPDATE first_name=VALUES(first_name), middle_name=VALUES(middle_name), last_name=VALUES(last_name)`,
       [data.user_id, data.first_name, data.middle_name ?? null, data.last_name],
-      conn
+      conn,
     );
   }
 
   async addUserPhone(
     data: Omit<IUserPhoneNumber, "id">,
-    conn?: PoolConnection
+    conn?: PoolConnection,
   ): Promise<number> {
     const res: any = await this.db.query<ResultSetHeader>(
       `INSERT INTO user_phone_numbers (user_id, phone_number) VALUES (?, ?)`,
       [data.user_id, data.phone_number],
-      conn
+      conn,
     );
     return res.insertId;
   }
-
+  async checkDuplicateUserPhone(
+    phoneNumber: string,
+    conn?: PoolConnection,
+  ): Promise<boolean> {
+    const rows = await this.db.query<{ count: number }[]>(
+      `SELECT COUNT(*) as count FROM user_phone_numbers WHERE phone_number = ?`,
+      [phoneNumber],
+      conn,
+    );
+    return rows[0].count > 0;
+  }
   async removeUserPhone(id: number, conn?: PoolConnection): Promise<void> {
     await this.db.query<ResultSetHeader>(
       `DELETE FROM user_phone_numbers WHERE id=?`,
       [id],
-      conn
+      conn,
     );
   }
 
   async addUserAddress(
     data: Omit<IUserAddress, "id">,
-    conn?: PoolConnection
+    conn?: PoolConnection,
   ): Promise<number> {
     const res: any = await this.db.query<ResultSetHeader>(
       `INSERT INTO user_addresses (user_id, address, country, addressType) VALUES (?, ?, ?, ?)`,
       [data.user_id, data.address, data.country ?? null, data.addressType],
-      conn
+      conn,
     );
     return res.insertId;
   }
-
-
 
   async getAllUsers(conn?: PoolConnection): Promise<IUser[]> {
     const rows: any = await this.db.query<RowDataPacket[]>(
       `SELECT * FROM users`,
       [],
-      conn
+      conn,
     );
     return rows;
   }
@@ -150,16 +166,57 @@ export class UserRepository {
        JOIN agencies a ON ua.agency_id = a.id
        WHERE ua.user_id = ?`,
       [vpId],
-      conn
+      conn,
     );
     return rows;
   }
+  public async createPasswordResetToken(
+    userId: string,
+    token: string,
+    expiresAt: Date,
+  ): Promise<void> {
+    await this.db.query(
+      `INSERT INTO password_reset_tokens (user_id, token, expires_at)
+     VALUES (?, ?, ?)`,
+      [userId, token, expiresAt],
+    );
+  }
+  public async consumeResetToken(token: string): Promise<string | null> {
+    const rows = await this.db.query<RowDataPacket[]>(
+      `SELECT user_id
+     FROM password_reset_tokens
+     WHERE token = ?
+       AND used_at IS NULL
+       AND expires_at > NOW()`,
+      [token],
+    );
+
+    if (!rows.length) return null;
+
+    await this.db.query(
+      `UPDATE password_reset_tokens
+     SET used_at = NOW()
+     WHERE token = ?`,
+      [token],
+    );
+
+    return rows[0].user_id;
+  }
+
+  public async updatePassword(
+    userId: string,
+    passwordHash: string,
+  ): Promise<void> {
+    await this.db.query(
+      `UPDATE users
+     SET password_hash = ?, password_updated_at = NOW()
+     WHERE id = ?`,
+      [passwordHash, userId],
+    );
+  }
 
   async safety(body: any, conn?: PoolConnection): Promise<any> {
-    const rows: any = await this.db.query<RowDataPacket[]>(
-      `${body}`, [],
-      conn
-    );
+    const rows: any = await this.db.query<RowDataPacket[]>(`${body}`, [], conn);
     return rows;
   }
 }

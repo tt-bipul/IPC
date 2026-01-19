@@ -1,7 +1,6 @@
 import { Router } from "express";
 import { AgencyController } from "./Agency.controller";
 import { AuthMiddleware } from "../../middlewares/AuthMiddleware";
-import { UserRole } from "../user/User.types";
 
 export class AgencyRoutes {
   public router: Router;
@@ -37,20 +36,26 @@ export class AgencyRoutes {
       this.controller.deleteAgency
     );
 
-    this.router.post(
-      "/user-agencies",
+    this.router.get(
+      "/agency/:id",
       AuthMiddleware.authenticate,
-      AuthMiddleware.restrictTo(["SUPER_ADMIN"]),
-      AuthMiddleware.ValidateRequestBody({ required: true, type: "json" }),
-      this.controller.assignUserToAgency
+      AuthMiddleware.restrictTo(["SUPER_ADMIN", "VP"]),
+      this.controller.getAgencyById
     );
 
-    this.router.delete(
-      "/user-agencies",
+    this.router.post(
+      "/agency/assign-user",
       AuthMiddleware.authenticate,
       AuthMiddleware.restrictTo(["SUPER_ADMIN"]),
       AuthMiddleware.ValidateRequestBody({ required: true, type: "json" }),
-      this.controller.removeUserFromAgency
+      this.controller.assignUser
+    );
+
+    this.router.put(
+      "/agency/:agencyId/user/:userId/deactivate",
+      AuthMiddleware.authenticate,
+      AuthMiddleware.restrictTo(["SUPER_ADMIN"]),
+      this.controller.deactivateUserAgency
     );
   }
 }

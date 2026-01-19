@@ -1,35 +1,27 @@
 import { Database } from "../../core/Database";
+import { PoolConnection, ResultSetHeader, RowDataPacket } from "mysql2/promise";
+import { v4 as uuidv4 } from "uuid";
 import {
-  IAddress,
   IAgency,
-  IAgencyAddress,
-  IAgencyContact,
-  IContact,
   ILocation,
+  IAddress,
+  IContact,
   IUserAgency,
 } from "./Agency.types";
-import { RowDataPacket, ResultSetHeader } from "mysql2";
-import { PoolConnection } from "mysql2/promise";
-import { v4 as uuidv4 } from "uuid";
 
 export class AgencyRepository {
   private db = Database.getInstance();
+
   async createAgency(
     data: Omit<IAgency, "id" | "created_at" | "updated_at">,
-    conn?: PoolConnection
+    conn?: PoolConnection,
   ): Promise<string> {
     const id = uuidv4();
     await this.db.query<ResultSetHeader>(
-      `INSERT INTO agencies (id, agency_name, branch_code, is_active, vp_user_id)
-       VALUES (?, ?, ?, ?, ?)`,
-      [
-        id,
-        data.agency_name,
-        data.branch_code ?? null,
-        data.is_active,
-        data.vp_user_id ?? null,
-      ],
-      conn
+      `INSERT INTO agencies (id, agency_name, branch_code, is_active)
+       VALUES (?, ?, ?, ?)`,
+      [id, data.agency_name, data.branch_code ?? null, data.is_active ?? 1],
+      conn,
     );
     return id;
   }
@@ -37,151 +29,254 @@ export class AgencyRepository {
   async updateAgency(
     id: string,
     data: Partial<IAgency>,
-    conn?: PoolConnection
+    conn?: PoolConnection,
   ): Promise<void> {
+    const fields: string[] = [];
+    const values: any[] = [];
+
+    if (data.agency_name !== undefined) {
+      fields.push("agency_name=?");
+      values.push(data.agency_name);
+    }
+    if (data.branch_code !== undefined) {
+      fields.push("branch_code=?");
+      values.push(data.branch_code);
+    }
+    if (data.is_active !== undefined) {
+      fields.push("is_active=?");
+      values.push(data.is_active);
+    }
+
+    if (!fields.length) return;
+
+    values.push(id);
+
     await this.db.query<ResultSetHeader>(
-      `UPDATE agencies SET agency_name=?, branch_code=?, is_active=?, vp_user_id=? WHERE id=?`,
-      [
-        data.agency_name,
-        data.branch_code ?? null,
-        data.is_active,
-        data.vp_user_id ?? null,
-        id,
-      ],
-      conn
+      `UPDATE agencies SET ${fields.join(", ")} WHERE id=?`,
+      values,
+      conn,
     );
+
+    if (data.is_active === 0) {
+      await this.db.query<ResultSetHeader>(
+        `UPDATE user_agencies SET is_active=0 WHERE agency_id=?`,
+        [id],
+        conn,
+      );
+    }
   }
 
-  async deleteAgency(id: string, conn?: PoolConnection): Promise<void> {
+  async existsByBranchCode(
+    branchCode: string,
+    conn?: PoolConnection,
+  ): Promise<boolean> {
+    const rows = await this.db.query<RowDataPacket[]>(
+      `SELECT 1 FROM agencies WHERE branch_code=? LIMIT 1`,
+      [branchCode],
+      conn,
+    );
+    return rows.length > 0;
+  }
+
+  async softDeleteAgency(id: string, conn?: PoolConnection): Promise<void> {
     await this.db.query<ResultSetHeader>(
-      `DELETE FROM agencies WHERE id=?`,
+      `UPDATE agencies SET is_active=0 WHERE id=?`,
       [id],
-      conn
+      conn,
+    );
+    await this.db.query<ResultSetHeader>(
+      `UPDATE user_agencies SET is_active=0 WHERE agency_id=?`,
+      [id],
+      conn,
     );
   }
 
   async createLocation(
     data: Omit<ILocation, "id">,
-    conn?: PoolConnection
+    conn?: PoolConnection,
   ): Promise<number> {
-    const res: any = await this.db.query<ResultSetHeader>(
-      `INSERT INTO locations (city, state, country, pincode) VALUES (?, ?, ?, ?)
+    const res = await this.db.query<ResultSetHeader>(
+      `INSERT INTO locations (city, state, country, pincode)
+       VALUES (?, ?, ?, ?)
        ON DUPLICATE KEY UPDATE id=LAST_INSERT_ID(id)`,
       [data.city, data.state, data.country, data.pincode],
-      conn
+      conn,
     );
     return res.insertId;
   }
 
   async createAddress(
-    data: Omit<IAddress, "id">,
-    conn?: PoolConnection
+    data: Omit<IAddress, "id"> & { is_active?: number },
+    conn?: PoolConnection,
   ): Promise<number> {
-    const res: any = await this.db.query<ResultSetHeader>(
-      `INSERT INTO addresses (address_line_1, address_line_2, location_id)
-       VALUES (?, ?, ?)`,
-      [data.address_line_1, data.address_line_2 ?? null, data.location_id],
-      conn
+    const res = await this.db.query<ResultSetHeader>(
+      `INSERT INTO addresses (address_line_1, address_line_2, location_id, is_active)
+       VALUES (?, ?, ?, ?)`,
+      [
+        data.address_line_1,
+        data.address_line_2 ?? null,
+        data.location_id,
+        data.is_active ?? 1,
+      ],
+      conn,
     );
     return res.insertId;
   }
 
+  async softDeleteAddress(id: number, conn?: PoolConnection): Promise<void> {
+    await this.db.query<ResultSetHeader>(
+      `UPDATE addresses SET is_active=0 WHERE id=?`,
+      [id],
+      conn,
+    );
+  }
+
   async createContact(
-    data: Omit<IContact, "id">,
-    conn?: PoolConnection
+    data: Omit<IContact, "id"> & { is_active?: number },
+    conn?: PoolConnection,
   ): Promise<number> {
-    const res: any = await this.db.query<ResultSetHeader>(
-      `INSERT INTO contacts (email, phone_number, alternate_phone_number)
-       VALUES (?, ?, ?)
-       ON DUPLICATE KEY UPDATE id=LAST_INSERT_ID(id), phone_number=VALUES(phone_number), alternate_phone_number=VALUES(alternate_phone_number)`,
+    const res = await this.db.query<ResultSetHeader>(
+      `INSERT INTO contacts (email, phone_number, alternate_phone_number, is_active)
+       VALUES (?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE
+         phone_number=VALUES(phone_number),
+         alternate_phone_number=VALUES(alternate_phone_number),
+         is_active=VALUES(is_active),
+         id=LAST_INSERT_ID(id)`,
       [
         data.email,
         data.phone_number ?? null,
         data.alternate_phone_number ?? null,
+        data.is_active ?? 1,
       ],
-      conn
+      conn,
     );
     return res.insertId;
   }
 
+  async softDeleteContact(id: number, conn?: PoolConnection): Promise<void> {
+    await this.db.query<ResultSetHeader>(
+      `UPDATE contacts SET is_active=0 WHERE id=?`,
+      [id],
+      conn,
+    );
+  }
+
   async linkAgencyAddress(
-    data: IAgencyAddress,
-    conn?: PoolConnection
+    agencyId: string,
+    addressId: number,
+    conn?: PoolConnection,
   ): Promise<void> {
     await this.db.query<ResultSetHeader>(
-      `INSERT INTO agency_addresses (agency_id, address_id) VALUES (?, ?)`,
-      [data.agency_id, data.address_id],
-      conn
+      `INSERT IGNORE INTO agency_addresses (agency_id, address_id)
+       VALUES (?, ?)`,
+      [agencyId, addressId],
+      conn,
     );
   }
 
   async linkAgencyContact(
-    data: IAgencyContact,
-    conn?: PoolConnection
+    agencyId: string,
+    contactId: number,
+    conn?: PoolConnection,
   ): Promise<void> {
     await this.db.query<ResultSetHeader>(
-      `INSERT INTO agency_contacts (agency_id, contact_id) VALUES (?, ?)`,
-      [data.agency_id, data.contact_id],
-      conn
+      `INSERT IGNORE INTO agency_contacts (agency_id, contact_id)
+       VALUES (?, ?)`,
+      [agencyId, contactId],
+      conn,
     );
   }
 
-  // associating user to agency
-
-  async createUserAgency(
+  async assignUserToAgency(
     data: IUserAgency,
-    conn?: PoolConnection
+    conn?: PoolConnection,
   ): Promise<void> {
     await this.db.query<ResultSetHeader>(
-      `INSERT INTO user_agencies (user_id, agency_id, is_active) VALUES (?, ?, ?)
+      `INSERT INTO user_agencies (user_id, agency_id, is_active)
+       VALUES (?, ?, ?)
        ON DUPLICATE KEY UPDATE is_active=VALUES(is_active)`,
-      [data.user_id, data.agency_id, data.is_active],
-      conn
+      [data.user_id, data.agency_id, data.is_active ?? 1],
+      conn,
     );
   }
 
-  async deleteUserAgency(
+  async deactivateUserAgency(
     userId: string,
     agencyId: string,
-    conn?: PoolConnection
+    conn?: PoolConnection,
   ): Promise<void> {
     await this.db.query<ResultSetHeader>(
-      `DELETE FROM user_agencies WHERE user_id=? AND agency_id=?`,
+      `UPDATE user_agencies SET is_active=0 WHERE user_id=? AND agency_id=?`,
       [userId, agencyId],
-      conn
+      conn,
     );
   }
 
-  async getUserAgencies(
+  async getAgencyAggregateById(
+    agencyId: string,
+    includeInactive = false,
+    conn?: PoolConnection,
+  ): Promise<any | null> {
+    const agencyRows = await this.db.query<RowDataPacket[]>(
+      `SELECT * FROM agencies WHERE id=? ${
+        includeInactive ? "" : "AND is_active=1"
+      }`,
+      [agencyId],
+      conn,
+    );
+    if (!agencyRows.length) return null;
+
+    const addresses = await this.db.query<RowDataPacket[]>(
+      `SELECT a.*, l.*
+       FROM agency_addresses aa
+       JOIN addresses a ON a.id=aa.address_id
+       JOIN locations l ON l.id=a.location_id
+       WHERE aa.agency_id=? ${includeInactive ? "" : "AND a.is_active=1"}`,
+      [agencyId],
+      conn,
+    );
+
+    const contacts = await this.db.query<RowDataPacket[]>(
+      `SELECT c.*
+       FROM agency_contacts ac
+       JOIN contacts c ON c.id=ac.contact_id
+       WHERE ac.agency_id=? ${includeInactive ? "" : "AND c.is_active=1"}`,
+      [agencyId],
+      conn,
+    );
+
+    const users = await this.db.query<RowDataPacket[]>(
+      `SELECT * FROM user_agencies WHERE agency_id=? ${
+        includeInactive ? "" : "AND is_active=1"
+      }`,
+      [agencyId],
+      conn,
+    );
+
+    return {
+      ...agencyRows[0],
+      addresses,
+      contacts,
+      users,
+    };
+  }
+
+  async getAgenciesByUserId(
     userId: string,
-    conn?: PoolConnection
-  ): Promise<IUserAgency[]> {
-    const rows: any = await this.db.query<RowDataPacket[]>(
-      `SELECT * FROM user_agencies WHERE user_id=?`,
+    includeInactive = false,
+    conn?: PoolConnection,
+  ): Promise<any[]> {
+    const rows = await this.db.query<RowDataPacket[]>(
+      `SELECT a.*, ua.is_active AS user_is_active, ua.assigned_at
+       FROM user_agencies ua
+       JOIN agencies a ON a.id=ua.agency_id
+       WHERE ua.user_id=? ${
+         includeInactive ? "" : "AND ua.is_active=1 AND a.is_active=1"
+       }`,
       [userId],
-      conn
+      conn,
     );
     return rows;
-  }
-
-  async getAgencyByVpId(
-    vpId: string,
-    conn?: PoolConnection
-  ): Promise<IUserAgency | null> {
-    const rows: any = await this.db.query<RowDataPacket[]>(
-      `SELECT * FROM user_agencies WHERE user_id=? LIMIT 1`,
-      [vpId],
-      conn
-    );
-    return rows[0] || null;
-  }
-
-  async getAgencyById(id: string, conn?: PoolConnection): Promise<IAgency | null> {
-    const rows: any = await this.db.query<RowDataPacket[]>(
-      `SELECT * FROM agencies WHERE id=? LIMIT 1`,
-      [id],
-      conn
-    );
-    return rows[0] || null;
   }
 }

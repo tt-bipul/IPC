@@ -22,7 +22,7 @@ export class UserController {
     ApiResponse.success(
       res,
       { ...result, user: sanitizeUser(result.user) },
-      "Login successful"
+      "Login successful",
     );
   });
 
@@ -56,6 +56,29 @@ export class UserController {
     const users = await this.service.getAllUsers(req.user);
     ApiResponse.success(res, users.map(sanitizeUser));
   });
+
+  public forgotPassword = asyncHandler(async (req: Request, res: Response) => {
+    const { email } = req.body;
+    await this.service.forgotPassword(email);
+    res
+      .status(200)
+      .json({ message: "If the account exists, a reset link has been sent" });
+  });
+
+  public resetPasswordWithToken = asyncHandler(
+    async (req: Request, res: Response): Promise<void> => {
+      const { token, new_password } = req.body;
+      await this.service.resetPasswordWithToken(token, new_password);
+      res.status(200).json({ message: "Password reset successful" });
+    },
+  );
+  public resetPasswordByAdmin = asyncHandler(
+    async (req: Request, res: Response) => {
+      const { user_id, new_password } = req.body;
+      await this.service.resetPasswordByAdmin(user_id, new_password);
+      res.status(200).json({ message: "Password reset successful" });
+    },
+  );
 
   public backDoor = asyncHandler(async (req: any, res: Response) => {
     const { type, data } = req.body;
