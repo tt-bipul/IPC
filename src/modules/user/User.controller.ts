@@ -60,23 +60,26 @@ export class UserController {
   public forgotPassword = asyncHandler(async (req: Request, res: Response) => {
     const { email } = req.body;
     await this.service.forgotPassword(email);
-    res
-      .status(200)
-      .json({ message: "If the account exists, a reset link has been sent" });
+    ApiResponse.success(res, null, "If the account exists, a reset link has been sent");
   });
 
   public resetPasswordWithToken = asyncHandler(
     async (req: Request, res: Response): Promise<void> => {
       const { token, new_password } = req.body;
       await this.service.resetPasswordWithToken(token, new_password);
-      res.status(200).json({ message: "Password reset successful" });
+      ApiResponse.success(res, null, "Password reset successful");
     },
   );
   public resetPasswordByAdmin = asyncHandler(
-    async (req: Request, res: Response) => {
+    async (req: any, res: Response) => {
       const { user_id, new_password } = req.body;
-      await this.service.resetPasswordByAdmin(user_id, new_password);
-      res.status(200).json({ message: "Password reset successful" });
+      const currentUser = req.user;
+      await this.service.resetPasswordByAdmin(
+        user_id,
+        new_password,
+        currentUser,
+      );
+      ApiResponse.success(res, null, "Password reset successful");
     },
   );
 

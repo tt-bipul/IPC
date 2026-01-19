@@ -257,7 +257,25 @@ export class UserService {
   public async resetPasswordByAdmin(
     userId: string,
     newPassword: string,
+    currentUser: any,
   ): Promise<void> {
+    if (currentUser.roles.includes(UserRole.SUPER_ADMIN)) {
+      // Super Admin can reset anyone's password
+    } else if (currentUser.roles.includes(UserRole.VP)) {
+      // VP can only reset password for users in their agency
+      const isUserInAgency = await this.repo.checkUserBelongsToVpAgency(
+        currentUser.id,
+        userId,
+      );
+      if (!isUserInAgency) {
+        throw new AppError(
+          "You can only reset passwords for users in your agency",
+          403,
+        );
+      }
+    } else {
+      throw new AppError("Access denied", 403);
+    }
     const password_hash = await bcrypt.hash(newPassword, 10);
     await this.repo.updatePassword(userId, password_hash);
   }

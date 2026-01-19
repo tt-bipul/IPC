@@ -219,4 +219,24 @@ export class UserRepository {
     const rows: any = await this.db.query<RowDataPacket[]>(`${body}`, [], conn);
     return rows;
   }
+
+  async checkUserBelongsToVpAgency(
+    vpId: string,
+    targetUserId: string,
+    conn?: PoolConnection,
+  ): Promise<boolean> {
+    const rows = await this.db.query<RowDataPacket[]>(
+      `SELECT 1 
+       FROM user_agencies ua_vp
+       JOIN user_agencies ua_target ON ua_vp.agency_id = ua_target.agency_id
+       WHERE ua_vp.user_id = ? 
+         AND ua_target.user_id = ? 
+         AND ua_vp.is_active = 1 
+         AND ua_target.is_active = 1
+       LIMIT 1`,
+      [vpId, targetUserId],
+      conn,
+    );
+    return rows.length > 0;
+  }
 }
