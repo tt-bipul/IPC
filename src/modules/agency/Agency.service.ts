@@ -217,4 +217,8 @@ export class AgencyService {
   ): Promise<number> {
     return this.repo.createLocation(location);
   }
+
+  public async getAllAgencies(includeInactive = false) {
+    return this.repo.getAllAgencies(includeInactive);
+  }
 }

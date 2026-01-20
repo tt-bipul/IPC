@@ -279,4 +279,32 @@ export class AgencyRepository {
     );
     return rows;
   }
+
+  async getAllAgencies(includeInactive = false): Promise<any[]> {
+    const rows = await this.db.query<RowDataPacket[]>(
+      `
+    SELECT
+      a.id AS agency_id,
+      a.agency_name,
+      a.branch_code,
+      c.email AS email_address,
+      c.phone_number,
+      c.alternate_phone_number AS alternate_phone,
+      ad.address_line_1,
+      ad.address_line_2,
+      l.city,
+      l.state,
+      l.country,
+      l.pincode AS postal_code
+    FROM agencies a
+    LEFT JOIN agency_addresses aa ON aa.agency_id = a.id
+    LEFT JOIN addresses ad ON ad.id = aa.address_id
+    LEFT JOIN locations l ON l.id = ad.location_id
+    LEFT JOIN agency_contacts ac ON ac.agency_id = a.id
+    LEFT JOIN contacts c ON c.id = ac.contact_id
+    ${includeInactive ? "" : "WHERE a.is_active=1 AND (ad.is_active=1 OR ad.id IS NULL) AND (c.is_active=1 OR c.id IS NULL)"}
+    `,
+    );
+    return rows;
+  }
 }

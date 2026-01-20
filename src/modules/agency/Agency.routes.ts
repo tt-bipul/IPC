@@ -18,7 +18,7 @@ export class AgencyRoutes {
       AuthMiddleware.authenticate,
       AuthMiddleware.restrictTo(["SUPER_ADMIN"]),
       AuthMiddleware.ValidateRequestBody({ required: true, type: "json" }),
-      this.controller.createAgency
+      this.controller.createAgency,
     );
 
     this.router.put(
@@ -26,21 +26,21 @@ export class AgencyRoutes {
       AuthMiddleware.authenticate,
       AuthMiddleware.restrictTo(["SUPER_ADMIN", "VP"]),
       AuthMiddleware.ValidateRequestBody({ required: true, type: "json" }),
-      this.controller.updateAgency
+      this.controller.updateAgency,
     );
 
     this.router.delete(
       "/agency/:id",
       AuthMiddleware.authenticate,
       AuthMiddleware.restrictTo(["SUPER_ADMIN"]),
-      this.controller.deleteAgency
+      this.controller.deleteAgency,
     );
 
     this.router.get(
       "/agency/:id",
       AuthMiddleware.authenticate,
       AuthMiddleware.restrictTo(["SUPER_ADMIN", "VP"]),
-      this.controller.getAgencyById
+      this.controller.getAgencyById,
     );
 
     this.router.post(
@@ -48,14 +48,21 @@ export class AgencyRoutes {
       AuthMiddleware.authenticate,
       AuthMiddleware.restrictTo(["SUPER_ADMIN"]),
       AuthMiddleware.ValidateRequestBody({ required: true, type: "json" }),
-      this.controller.assignUser
+      this.controller.assignUser,
     );
 
     this.router.put(
       "/agency/:agencyId/user/:userId/deactivate",
       AuthMiddleware.authenticate,
       AuthMiddleware.restrictTo(["SUPER_ADMIN"]),
-      this.controller.deactivateUserAgency
+      this.controller.deactivateUserAgency,
+    );
+
+    this.router.get(
+      "/get-all",
+      AuthMiddleware.authenticate,
+      AuthMiddleware.restrictTo(["SUPER_ADMIN"]),
+      this.controller.getAllAgencies,
     );
   }
 }

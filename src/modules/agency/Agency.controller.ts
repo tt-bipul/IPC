@@ -16,7 +16,7 @@ export class AgencyController {
       res,
       { id },
       "Agency created successfully",
-      HttpStatus.CREATED
+      HttpStatus.CREATED,
     );
   });
 
@@ -27,7 +27,7 @@ export class AgencyController {
       res,
       null,
       "Agency updated successfully",
-      HttpStatus.OK
+      HttpStatus.OK,
     );
   });
 
@@ -38,7 +38,7 @@ export class AgencyController {
       res,
       null,
       "Agency deleted successfully",
-      HttpStatus.OK
+      HttpStatus.OK,
     );
   });
 
@@ -46,7 +46,7 @@ export class AgencyController {
     const includeInactive = req.query.includeInactive === "true";
     const data = await this.service.getAgencyById(
       req.params.id,
-      includeInactive
+      includeInactive,
     );
 
     if (!data) {
@@ -63,14 +63,14 @@ export class AgencyController {
       res,
       null,
       "User assigned to agency successfully",
-      HttpStatus.OK
+      HttpStatus.OK,
     );
   });
 
   deactivateUserAgency = asyncHandler(async (req: Request, res: Response) => {
     await this.service.deactivateUserAgency(
       req.params.userId,
-      req.params.agencyId
+      req.params.agencyId,
     );
     Logger.info("User-agency deactivated", {
       userId: req.params.userId,
@@ -80,7 +80,13 @@ export class AgencyController {
       res,
       null,
       "User deactivated for agency successfully",
-      HttpStatus.OK
+      HttpStatus.OK,
     );
+  });
+
+  getAllAgencies = asyncHandler(async (req: Request, res: Response) => {
+    const includeInactive = req.query.includeInactive === "true";
+    const data = await this.service.getAllAgencies(includeInactive);
+    ApiResponse.success(res, data);
   });
 }
