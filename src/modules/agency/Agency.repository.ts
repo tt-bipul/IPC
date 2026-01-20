@@ -213,17 +213,13 @@ export class AgencyRepository {
     );
   }
 
-  async getAgencyAggregateById(
-    agencyId: string,
-    includeInactive = false,
-    conn?: PoolConnection,
-  ): Promise<any | null> {
-    const agencyRows = await this.db.query<RowDataPacket[]>(
-      `
+  private getAgencyAggregateSelect(includeInactive: boolean) {
+    return `
     SELECT
       a.id AS agency_id,
       a.agency_name,
       a.branch_code,
+      a.is_active,
       c.email AS email_address,
       c.phone_number,
       c.alternate_phone_number AS alternate_phone,
@@ -239,14 +235,25 @@ export class AgencyRepository {
     LEFT JOIN locations l ON l.id = ad.location_id
     LEFT JOIN agency_contacts ac ON ac.agency_id = a.id
     LEFT JOIN contacts c ON c.id = ac.contact_id
-    ${includeInactive ? "" : "WHERE a.is_active=1 AND (ad.is_active=1 OR ad.id IS NULL) AND (c.is_active=1 OR c.id IS NULL)"} AND a.id=?
-    `,
+    ${
+      includeInactive
+        ? ""
+        : "WHERE a.is_active=1 AND (ad.is_active=1 OR ad.id IS NULL) AND (c.is_active=1 OR c.id IS NULL)"
+    }
+  `;
+  }
+
+  async getAgencyAggregateById(
+    agencyId: string,
+    includeInactive = false,
+    conn?: PoolConnection,
+  ): Promise<any | null> {
+    const rows = await this.db.query<RowDataPacket[]>(
+      `${this.getAgencyAggregateSelect(includeInactive)} AND a.id=?`,
       [agencyId],
       conn,
     );
-    if (agencyRows.length === 0) {
-      return null;
-    } else return agencyRows[0];
+    return rows.length ? rows[0] : null;
   }
 
   async getAgenciesByUserId(
@@ -255,12 +262,12 @@ export class AgencyRepository {
     conn?: PoolConnection,
   ): Promise<any[]> {
     const rows = await this.db.query<RowDataPacket[]>(
-      `SELECT a.*, ua.is_active AS user_is_active, ua.assigned_at
-       FROM user_agencies ua
-       JOIN agencies a ON a.id=ua.agency_id
-       WHERE ua.user_id=? ${
-         includeInactive ? "" : "AND ua.is_active=1 AND a.is_active=1"
-       }`,
+      `
+    ${this.getAgencyAggregateSelect(includeInactive)}
+    JOIN user_agencies ua ON ua.agency_id = a.id
+    WHERE ua.user_id=?
+    ${includeInactive ? "" : "AND ua.is_active=1 AND a.is_active=1"}
+    `,
       [userId],
       conn,
     );
@@ -268,30 +275,8 @@ export class AgencyRepository {
   }
 
   async getAllAgencies(includeInactive = false): Promise<any[]> {
-    const rows = await this.db.query<RowDataPacket[]>(
-      `
-    SELECT
-      a.id AS agency_id,
-      a.agency_name,
-      a.branch_code,
-      c.email AS email_address,
-      c.phone_number,
-      c.alternate_phone_number AS alternate_phone,
-      ad.address_line_1,
-      ad.address_line_2,
-      l.city,
-      l.state,
-      l.country,
-      l.pincode AS postal_code
-    FROM agencies a
-    LEFT JOIN agency_addresses aa ON aa.agency_id = a.id
-    LEFT JOIN addresses ad ON ad.id = aa.address_id
-    LEFT JOIN locations l ON l.id = ad.location_id
-    LEFT JOIN agency_contacts ac ON ac.agency_id = a.id
-    LEFT JOIN contacts c ON c.id = ac.contact_id
-    ${includeInactive ? "" : "WHERE a.is_active=1 AND (ad.is_active=1 OR ad.id IS NULL) AND (c.is_active=1 OR c.id IS NULL)"}
-    `,
+    return this.db.query<RowDataPacket[]>(
+      this.getAgencyAggregateSelect(includeInactive),
     );
-    return rows;
   }
 }
