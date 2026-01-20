@@ -219,47 +219,34 @@ export class AgencyRepository {
     conn?: PoolConnection,
   ): Promise<any | null> {
     const agencyRows = await this.db.query<RowDataPacket[]>(
-      `SELECT * FROM agencies WHERE id=? ${
-        includeInactive ? "" : "AND is_active=1"
-      }`,
+      `
+    SELECT
+      a.id AS agency_id,
+      a.agency_name,
+      a.branch_code,
+      c.email AS email_address,
+      c.phone_number,
+      c.alternate_phone_number AS alternate_phone,
+      ad.address_line_1,
+      ad.address_line_2,
+      l.city,
+      l.state,
+      l.country,
+      l.pincode AS postal_code
+    FROM agencies a
+    LEFT JOIN agency_addresses aa ON aa.agency_id = a.id
+    LEFT JOIN addresses ad ON ad.id = aa.address_id
+    LEFT JOIN locations l ON l.id = ad.location_id
+    LEFT JOIN agency_contacts ac ON ac.agency_id = a.id
+    LEFT JOIN contacts c ON c.id = ac.contact_id
+    ${includeInactive ? "" : "WHERE a.is_active=1 AND (ad.is_active=1 OR ad.id IS NULL) AND (c.is_active=1 OR c.id IS NULL)"} AND a.id=?
+    `,
       [agencyId],
       conn,
     );
-    if (!agencyRows.length) return null;
-
-    const addresses = await this.db.query<RowDataPacket[]>(
-      `SELECT a.*, l.*
-       FROM agency_addresses aa
-       JOIN addresses a ON a.id=aa.address_id
-       JOIN locations l ON l.id=a.location_id
-       WHERE aa.agency_id=? ${includeInactive ? "" : "AND a.is_active=1"}`,
-      [agencyId],
-      conn,
-    );
-
-    const contacts = await this.db.query<RowDataPacket[]>(
-      `SELECT c.*
-       FROM agency_contacts ac
-       JOIN contacts c ON c.id=ac.contact_id
-       WHERE ac.agency_id=? ${includeInactive ? "" : "AND c.is_active=1"}`,
-      [agencyId],
-      conn,
-    );
-
-    const users = await this.db.query<RowDataPacket[]>(
-      `SELECT * FROM user_agencies WHERE agency_id=? ${
-        includeInactive ? "" : "AND is_active=1"
-      }`,
-      [agencyId],
-      conn,
-    );
-
-    return {
-      ...agencyRows[0],
-      addresses,
-      contacts,
-      users,
-    };
+    if (agencyRows.length === 0) {
+      return null;
+    } else return agencyRows[0];
   }
 
   async getAgenciesByUserId(
