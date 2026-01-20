@@ -12,6 +12,9 @@ export interface IBusinessRule {
     field_name: string;
     rule_type: RuleType;
     criteria?: any;
+    rule_priority: number;
+    version: number;
+    is_active: boolean;
     created_at?: Date;
     updated_at?: Date;
 }
@@ -21,4 +24,6 @@ export interface CreateRuleDTO {
     field_name: string;
     rule_type: RuleType;
     criteria?: any;
+    rule_priority?: number;
+    version?: number;
 }

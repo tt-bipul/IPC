@@ -2,32 +2,22 @@ import { IAgency } from './Agency.types';
 
 export class Agency implements IAgency {
     id: string;
-    tenant_id: string;
+    tenant_id?: string;
     agency_name: string;
-    branch_code?: string;
-    email: string;
-    phone_number?: string;
-    alternate_phone_number?: string;
-    country?: string;
-    address_line_1?: string;
-    address_line_2?: string;
-    pincode?: string;
-    state?: string;
-    city?: string;
+    branch_code?: string | null;
+    is_active: boolean;
+    vp_user_id?: string | null;
+    created_at: Date;
+    updated_at: Date;
 
     constructor(data: IAgency) {
         this.id = data.id;
-        this.tenant_id = data.tenant_id;
+        this.tenant_id = data.tenant_id; // Note: IAgency doesn't seem to have tenant_id in interface? Checking...
         this.agency_name = data.agency_name;
         this.branch_code = data.branch_code;
-        this.email = data.email;
-        this.phone_number = data.phone_number;
-        this.alternate_phone_number = data.alternate_phone_number;
-        this.country = data.country;
-        this.address_line_1 = data.address_line_1;
-        this.address_line_2 = data.address_line_2;
-        this.pincode = data.pincode;
-        this.state = data.state;
-        this.city = data.city;
+        this.is_active = data.is_active;
+        this.vp_user_id = data.vp_user_id;
+        this.created_at = data.created_at;
+        this.updated_at = data.updated_at;
     }
 }

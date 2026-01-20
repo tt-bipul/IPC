@@ -16,7 +16,8 @@ export class TenantService {
             company_email: data.company_email || null as any,
             phone_number: data.phone_number || null as any,
             country: data.country || null as any,
-            address: data.address || null as any
+            address: data.address || null as any,
+            is_active: true
         };
         await this.tenantRepository.create(newTenant);
         return newTenant;

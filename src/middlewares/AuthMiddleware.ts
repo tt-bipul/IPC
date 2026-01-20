@@ -1,34 +1,178 @@
-import { Request, Response, NextFunction } from 'express';
-import jwt from 'jsonwebtoken';
-import { env } from '../config/env';
-import { AppError } from '../core/ErrorHandler';
+import { Request, Response, NextFunction } from "express";
+import jwt from "jsonwebtoken";
+import { env } from "../config/env";
+import { AppError } from "../core/ErrorHandler";
 
 export interface AuthRequest extends Request {
-    user?: any;
+  user?: any;
+}
+
+type BodyType = "json" | "form-data" | "urlencoded";
+interface ValidateRequestBodyOptions {
+  required?: boolean;
+  type?: BodyType;
 }
 
 export class AuthMiddleware {
-    public static authenticate(req: AuthRequest, res: Response, next: NextFunction): void {
-        try {
-            const token = req.headers.authorization?.split(' ')[1];
-            if (!token) {
-                throw new AppError('Authentication failed: No token provided', 401);
-            }
+  public static authenticate(
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction
+  ): void {
+    try {
+      const token = req.headers.authorization?.split(" ")[1];
+      if (!token) {
+        throw new AppError("Authentication failed: No token provided", 401);
+      }
 
-            const decoded = jwt.verify(token, env.jwtSecret);
-            req.user = decoded;
-            next();
-        } catch (error) {
-            next(new AppError('Authentication failed: Invalid token', 401));
+      const decoded = jwt.verify(token, env.jwtSecret);
+      req.user = decoded;
+      next();
+    } catch (error) {
+      next(new AppError("Authentication failed: Invalid token", 401));
+    }
+  }
+
+  public static restrictTo(allowedRoles: string[]) {
+    return (req: AuthRequest, res: Response, next: NextFunction) => {
+      if (!req.user) {
+        return next(new AppError("Not authenticated", 401));
+      }
+
+      const userRoles = req.user.roles || [];
+      const hasPermission = userRoles.some((role: string) => allowedRoles.includes(role)) || userRoles.includes("SUPER_ADMIN");
+
+      if (!hasPermission) {
+        return next(
+          new AppError("You do not have permission to perform this action", 403)
+        );
+      }
+      next();
+    };
+  }
+
+  public static requireTenantAccess(paramName: string = "tenantId") {
+    return (req: AuthRequest, res: Response, next: NextFunction) => {
+      const user = req.user;
+      if (!user) return next(new AppError("Not authenticated", 401));
+
+      const userRoles = user.roles || [];
+      if (userRoles.includes("SUPER_ADMIN")) {
+        return next();
+      }
+
+      const requestedTenantId =
+        req.params[paramName] || req.body[paramName] || req.query[paramName];
+
+      if (!requestedTenantId) {
+        return next();
+      }
+
+      if (user.tenant_id !== requestedTenantId) {
+        return next(new AppError("Access to this tenant is forbidden", 403));
+      }
+
+      next();
+    };
+  }
+
+  /** Request Body type handler custom */
+
+  static ValidateRequestBody(options: ValidateRequestBodyOptions) {
+    return (req: Request, res: Response, next: NextFunction): void => {
+      const { required, type } = options;
+
+      if (required) {
+        if (!req.body || Object.keys(req.body).length === 0) {
+          next(new AppError("Request body is required", 400));
+          return;
         }
-    }
+      }
 
-    public static restrictTo(roles: string[]) {
-        return (req: AuthRequest, res: Response, next: NextFunction) => {
-            if (!req.user || !roles.includes(req.user.user_role)) {
-                return next(new AppError('You do not have permission to perform this action', 403));
+      if (type) {
+        const contentType = req.headers["content-type"] || "";
+
+        switch (type) {
+          case "json":
+            if (!contentType.includes("application/json")) {
+              next(new AppError("Request body must be application/json", 415));
+              return;
             }
-            next();
-        };
-    }
+            break;
+
+          case "form-data":
+            if (!contentType.includes("multipart/form-data")) {
+              next(
+                new AppError("Request body must be multipart/form-data", 415)
+              );
+              return;
+            }
+            break;
+
+          case "urlencoded":
+            if (!contentType.includes("application/x-www-form-urlencoded")) {
+              next(
+                new AppError(
+                  "Request body must be application/x-www-form-urlencoded",
+                  415
+                )
+              );
+              return;
+            }
+            break;
+        }
+      }
+
+      next();
+    };
+  }
+
+  static EnforceStrictnessForNonSuperAdmin() {
+    return (req: AuthRequest, res: Response, next: NextFunction) => {
+      const user = req.user;
+      if (!user) return next(new AppError("Not authenticated", 401));
+
+      const roles = Array.isArray(user.roles) ? user.roles : [];
+      if (roles.includes("SUPER_ADMIN")) return next();
+
+      if (!req.body || typeof req.body !== "object" || Array.isArray(req.body)) {
+        return next(new AppError("Invalid request body", 400));
+      }
+
+      const allowedKeys = ["username", "email", "password", "profile", "phones", "addresses"];
+      const bodyKeys = Object.keys(req.body);
+
+      // Check for extra keys
+      const extraKeys = bodyKeys.filter(key => !allowedKeys.includes(key));
+      if (extraKeys.length > 0) {
+        return next(
+          new AppError(
+            `Invalid request payload. The following fields are not allowed for your role: ${extraKeys.join(", ")}`,
+            400
+          )
+        );
+      }
+
+      const { username, email, password } = req.body;
+
+      // Validate required fields and types
+      const errors: string[] = [];
+      if (typeof username !== "string" || !username.trim()) {
+        errors.push("username must be a non-empty string");
+      }
+      if (typeof email !== "string" || !email.trim()) {
+        errors.push("email must be a non-empty string");
+      }
+      if (typeof password !== "string" || !password.trim()) {
+        errors.push("password must be a non-empty string");
+      }
+
+      if (errors.length > 0) {
+        return next(new AppError(`Invalid request payload: ${errors.join(", ")}`, 400));
+      }
+
+      next();
+    };
+  }
+
 }

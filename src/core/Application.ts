@@ -26,17 +26,7 @@ export class Application {
     }
 
     private initializeRoutes(): void {
-        const swaggerOptions = {
-            customCssUrl: 'https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.0.0/swagger-ui.min.css',
-            customJs: [
-                'https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.0.0/swagger-ui-bundle.min.js',
-                'https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.0.0/swagger-ui-standalone-preset.min.js',
-            ],
-            swaggerOptions: {
-                persistAuthorization: true,
-            }
-        };
-        this.app.use('/swagger', swaggerUi.serve, swaggerUi.setup(specs, swaggerOptions))
+        this.app.use('/swagger', swaggerUi.serve, swaggerUi.setup(specs))
         this.app.use('/', mainRouter)
     }
 

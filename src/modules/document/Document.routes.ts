@@ -56,7 +56,7 @@ export class DocumentRoutes {
 
         this.router.post('/upload',
             AuthMiddleware.authenticate,
-            AuthMiddleware.restrictTo([UserRole.AGENCY_EXECUTIVE]),
+            AuthMiddleware.restrictTo([UserRole.AGENT]),
             this.upload.array('documents', 3),
             this.documentController.upload
         );

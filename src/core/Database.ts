@@ -28,9 +28,10 @@ export class Database {
         }
     }
 
-    public async query<T>(sql: string, params?: any[]): Promise<T> {
+    public async query<T>(sql: string, params?: any[], conn?: PoolConnection): Promise<T> {
         try {
-            const [rows] = await this.pool.execute(sql, params);
+            const executor = conn || this.pool;
+            const [rows] = await executor.execute(sql, params);
             return rows as T;
         } catch (error) {
             Logger.error(`Database Query Error: ${sql}`, error);
@@ -40,5 +41,20 @@ export class Database {
 
     public async getConnection(): Promise<PoolConnection> {
         return this.pool.getConnection();
+    }
+
+    public async withTransaction<T>(fn: (conn: PoolConnection) => Promise<T>): Promise<T> {
+        const conn = await this.getConnection();
+        try {
+            await conn.beginTransaction();
+            const result = await fn(conn);
+            await conn.commit();
+            return result;
+        } catch (error) {
+            await conn.rollback();
+            throw error;
+        } finally {
+            conn.release();
+        }
     }
 }

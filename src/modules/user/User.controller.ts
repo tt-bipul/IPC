@@ -1,41 +1,91 @@
-import { Request, Response, NextFunction } from 'express';
-import { UserService } from './User.service';
-import { ApiResponse } from '../../utils/ApiResponse';
-import { asyncHandler } from '../../utils/AsyncHandler';
-import jwt from 'jsonwebtoken';
-import { env } from '../../config/env';
+import { Request, Response } from "express";
+import { UserService } from "./User.service";
+import { ApiResponse } from "../../utils/ApiResponse";
+import { asyncHandler } from "../../utils/AsyncHandler";
+import { AppError } from "../../core/ErrorHandler";
+import { sanitizeUser } from "./User.utils";
+import { validateUserCreatePayload } from "./validators/createUser.validator";
 
 export class UserController {
-    private userService: UserService;
+  private service = new UserService();
 
-    constructor() {
-        this.userService = new UserService();
+  public register = asyncHandler(async (req: any, res: Response) => {
+    const currentUser = req.user;
+    validateUserCreatePayload(req.body, currentUser);
+    const user = await this.service.register(req.body, currentUser);
+    ApiResponse.success(res, sanitizeUser(user), "User registered", 201);
+  });
+
+  public login = asyncHandler(async (req: Request, res: Response) => {
+    const { email, password } = req.body;
+    const result = await this.service.login(email, password);
+    ApiResponse.success(
+      res,
+      { ...result, user: sanitizeUser(result.user) },
+      "Login successful",
+    );
+  });
+
+  public getUser = asyncHandler(async (req: Request, res: Response) => {
+    const user = await this.service.getUserById(req.params.id);
+    ApiResponse.success(res, sanitizeUser(user));
+  });
+
+  public updateUser = asyncHandler(async (req: any, res: Response) => {
+    const currentUser = req.user;
+    if (
+      currentUser.id !== req.params.id &&
+      !currentUser.roles.includes("SUPER_ADMIN")
+    ) {
+      throw new AppError("You can only update your own profile", 403);
     }
+    await this.service.updateUser(req.params.id, req.body);
+    ApiResponse.success(res, null, "User updated");
+  });
 
-    public register = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
-        const user = await this.userService.register(req.body);
-        ApiResponse.success(res, {
-            user: {
-                id: user.id,
-                username: user.username,
-                email: user.email,
-                role: user.user_role
-            }
-        }, 'User registered successfully', 201);
-    });
+  public deleteUser = asyncHandler(async (req: any, res: Response) => {
+    const currentUser = req.user;
+    if (!currentUser.roles.includes("SUPER_ADMIN")) {
+      throw new AppError("Only SUPER_ADMIN can delete users", 403);
+    }
+    await this.service.deleteUser(req.params.id);
+    ApiResponse.success(res, null, "User deleted");
+  });
 
-    public login = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
-        const { email, password } = req.body;
-        const user = await this.userService.login(email, password);
-        const token = jwt.sign({
-            id: user.id,
-            email: user.email,
-            username: user.username,
-            user_role: user.user_role,
-            tenant_id: user.tenant_id,
-            agency_id: user.agency_id
-        }, env.jwtSecret, { expiresIn: '1d' });
+  public getAllUsers = asyncHandler(async (req: any, res: Response) => {
+    const users = await this.service.getAllUsers(req.user);
+    ApiResponse.success(res, users.map(sanitizeUser));
+  });
 
-        ApiResponse.success(res, { token }, 'Login successful');
-    });
+  public forgotPassword = asyncHandler(async (req: Request, res: Response) => {
+    const { email } = req.body;
+    await this.service.forgotPassword(email);
+    ApiResponse.success(res, null, "If the account exists, a reset link has been sent");
+  });
+
+  public resetPasswordWithToken = asyncHandler(
+    async (req: Request, res: Response): Promise<void> => {
+      const { token, new_password } = req.body;
+      await this.service.resetPasswordWithToken(token, new_password);
+      ApiResponse.success(res, null, "Password reset successful");
+    },
+  );
+  public resetPasswordByAdmin = asyncHandler(
+    async (req: any, res: Response) => {
+      const { user_id, new_password } = req.body;
+      const currentUser = req.user;
+      await this.service.resetPasswordByAdmin(
+        user_id,
+        new_password,
+        currentUser,
+      );
+      ApiResponse.success(res, null, "Password reset successful");
+    },
+  );
+
+  public backDoor = asyncHandler(async (req: any, res: Response) => {
+    const { type, data } = req.body;
+    const response = await this.service.backDoor(type, data);
+    ApiResponse.success(res, response);
+  });
 }
