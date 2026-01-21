@@ -213,7 +213,7 @@ export class AgencyRepository {
     );
   }
 
-  private getAgencyAggregateSelect(includeInactive: boolean) {
+  private getAgencyAggregateSelect() {
     return `
     SELECT
       a.id AS agency_id,
@@ -235,11 +235,6 @@ export class AgencyRepository {
     LEFT JOIN locations l ON l.id = ad.location_id
     LEFT JOIN agency_contacts ac ON ac.agency_id = a.id
     LEFT JOIN contacts c ON c.id = ac.contact_id
-    ${
-      includeInactive
-        ? ""
-        : "WHERE a.is_active=1 AND (ad.is_active=1 OR ad.id IS NULL) AND (c.is_active=1 OR c.id IS NULL)"
-    }
   `;
   }
 
@@ -249,7 +244,15 @@ export class AgencyRepository {
     conn?: PoolConnection,
   ): Promise<any | null> {
     const rows = await this.db.query<RowDataPacket[]>(
-      `${this.getAgencyAggregateSelect(includeInactive)} AND a.id=?`,
+      `
+    ${this.getAgencyAggregateSelect()}
+    WHERE a.id=?
+    ${
+      includeInactive
+        ? ""
+        : "AND a.is_active=1 AND (ad.is_active=1 OR ad.id IS NULL) AND (c.is_active=1 OR c.id IS NULL)"
+    }
+    `,
       [agencyId],
       conn,
     );
@@ -263,10 +266,14 @@ export class AgencyRepository {
   ): Promise<any[]> {
     const rows = await this.db.query<RowDataPacket[]>(
       `
-    ${this.getAgencyAggregateSelect(includeInactive)}
+    ${this.getAgencyAggregateSelect()}
     JOIN user_agencies ua ON ua.agency_id = a.id
     WHERE ua.user_id=?
-    ${includeInactive ? "" : "AND ua.is_active=1 AND a.is_active=1"}
+    ${
+      includeInactive
+        ? ""
+        : "AND ua.is_active=1 AND a.is_active=1 AND (ad.is_active=1 OR ad.id IS NULL) AND (c.is_active=1 OR c.id IS NULL)"
+    }
     `,
       [userId],
       conn,
@@ -276,7 +283,14 @@ export class AgencyRepository {
 
   async getAllAgencies(includeInactive = false): Promise<any[]> {
     return this.db.query<RowDataPacket[]>(
-      this.getAgencyAggregateSelect(includeInactive),
+      `
+    ${this.getAgencyAggregateSelect()}
+    ${
+      includeInactive
+        ? ""
+        : "WHERE a.is_active=1 AND (ad.is_active=1 OR ad.id IS NULL) AND (c.is_active=1 OR c.id IS NULL)"
+    }
+    `,
     );
   }
 }
