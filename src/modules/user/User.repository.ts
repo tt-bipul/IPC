@@ -189,54 +189,67 @@ export class UserRepository {
 
   async getAllUsers(conn?: PoolConnection): Promise<IUser[]> {
     const rows: any = await this.db.query<RowDataPacket[]>(
-      `SELECT 
-        u.*,
-        up.first_name,
-        up.middle_name,
-        up.last_name,
+      `
+    SELECT 
+      u.*,
+      up.first_name,
+      up.middle_name,
+      up.last_name,
 
-        (
-          SELECT JSON_ARRAYAGG(
-            JSON_OBJECT(
-              'id', uph.id,
-              'phone_number', uph.phone_number
-            )
+      (
+        SELECT JSON_ARRAYAGG(
+          JSON_OBJECT(
+            'id', uph.id,
+            'phone_number', uph.phone_number
           )
-          FROM user_phone_numbers uph
-          WHERE uph.user_id = u.id
-        ) AS phones,
+        )
+        FROM user_phone_numbers uph
+        WHERE uph.user_id = u.id
+      ) AS phones,
 
-        (
-          SELECT JSON_ARRAYAGG(
-            JSON_OBJECT(
-              'id', ua.id,
-              'address', ua.address,
-              'country', ua.country,
-              'addressType', ua.addressType
-            )
+      (
+        SELECT JSON_ARRAYAGG(
+          JSON_OBJECT(
+            'id', ua.id,
+            'address', ua.address,
+            'country', ua.country,
+            'addressType', ua.addressType
           )
-          FROM user_addresses ua
-          WHERE ua.user_id = u.id
-        ) AS addresses,
+        )
+        FROM user_addresses ua
+        WHERE ua.user_id = u.id
+      ) AS addresses,
 
-        (
-          SELECT JSON_ARRAYAGG(
-            JSON_OBJECT(
-              'id', a.id,
-              'agency_name', a.agency_name,
-              'branch_code', a.branch_code,
-              'is_active', a.is_active
-            )
+      (
+        SELECT JSON_ARRAYAGG(
+          JSON_OBJECT(
+            'id', a.id,
+            'agency_name', a.agency_name,
+            'branch_code', a.branch_code,
+            'is_active', a.is_active
           )
-          FROM user_agencies uag
-          JOIN agencies a ON a.id = uag.agency_id
-          WHERE uag.user_id = u.id
-            AND uag.is_active = 1
-        ) AS agencies
+        )
+        FROM user_agencies uag
+        JOIN agencies a ON a.id = uag.agency_id
+        WHERE uag.user_id = u.id
+          AND uag.is_active = 1
+      ) AS agencies,
 
-      FROM users u
-      LEFT JOIN user_profiles up ON up.user_id = u.id;
-      `,
+      (
+        SELECT JSON_ARRAYAGG(
+          JSON_OBJECT(
+            'id', r.id,
+            'code', r.code
+          )
+        )
+        FROM user_roles ur
+        JOIN roles r ON r.id = ur.role_id
+        WHERE ur.user_id = u.id
+      ) AS roles
+
+    FROM users u
+    LEFT JOIN user_profiles up ON up.user_id = u.id
+    `,
       [],
       conn,
     );
