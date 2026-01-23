@@ -102,6 +102,15 @@ export class UserService {
             },
             conn,
           );
+        } else {
+          console.error(
+            "[REGISTER] VP user has no agency assigned",
+            currentUser.id,
+          );
+          throw new AppError(
+            "VP user has no agency assigned, contact Administrator",
+            400,
+          );
         }
         const getRole = await this.roleRepo.getRole(UserRole.AGENT, conn);
         if (!getRole) {
@@ -162,6 +171,25 @@ export class UserService {
       throw new AppError("Invalid credentials", 401);
     }
     const roles = await this.roleRepo.getUserRoles(user.id);
+    if (!roles || roles.length === 0) {
+      throw new AppError("User has no roles assigned", 403);
+    }
+    if (roles.includes(UserRole.VP)) {
+      const agencyRepo = new AgencyRepository();
+      const agencies = await agencyRepo.getAgenciesByUserId(user.id);
+      if (!agencies || agencies.length === 0) {
+        throw new AppError(
+          "VP user has no agency assigned, contact Administrator",
+          403,
+        );
+      }
+      if (agencies[0].is_active !== 1) {
+        throw new AppError(
+          "VP user's agency is inactive, contact Administrator",
+          403,
+        );
+      }
+    }
     const token = jwt.sign(
       { id: user.id, email: user.email, roles },
       env.jwtSecret,

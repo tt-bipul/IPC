@@ -160,16 +160,51 @@ export class UserRepository {
 
   async getUsersByVpId(vpId: string, conn?: PoolConnection): Promise<IUser[]> {
     const rows: any = await this.db.query<RowDataPacket[]>(
-      `SELECT DISTINCT u.* 
-       FROM users u
-       JOIN user_agencies ua ON u.id = ua.user_id
-       JOIN agencies a ON ua.agency_id = a.id
-       WHERE ua.user_id = ?`,
+      `SELECT
+        u.id AS user_id,
+        u.username,
+        u.email,
+        u.is_active,
+        u.is_deleted,
+        u.last_login_at,
+        u.created_at,
+        u.updated_at,
+
+        up.first_name,
+        up.middle_name,
+        up.last_name,
+
+        upn.phone_number,
+
+        ua.address,
+        ua.country,
+        ua.addressType,
+
+        ag.id AS agency_id,
+        ag.agency_name,
+        ag.branch_code,
+        uag.assigned_at,
+        uag.is_active AS user_agency_active
+        FROM user_agencies base_ua
+        JOIN user_agencies uag
+        ON uag.agency_id = base_ua.agency_id
+        JOIN users u
+        ON u.id = uag.user_id
+        LEFT JOIN user_profiles up
+        ON up.user_id = u.id
+        LEFT JOIN user_phone_numbers upn
+        ON upn.user_id = u.id
+        LEFT JOIN user_addresses ua
+        ON ua.user_id = u.id
+        JOIN agencies ag
+        ON ag.id = uag.agency_id
+      WHERE base_ua.user_id = ?`,
       [vpId],
       conn,
     );
     return rows;
   }
+  
   public async createPasswordResetToken(
     userId: string,
     token: string,
