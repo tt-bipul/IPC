@@ -5,6 +5,7 @@ import { AppError } from "../../core/ErrorHandler";
 import { Logger } from "../../core/Logger";
 import { ApiResponse } from "../../utils/ApiResponse";
 import { asyncHandler } from "../../utils/AsyncHandler";
+import { UserRole } from "../../modules/user/User.types";
 
 export class AgencyController {
   private service = new AgencyService();
@@ -20,9 +21,23 @@ export class AgencyController {
     );
   });
 
-  updateAgency = asyncHandler(async (req: Request, res: Response) => {
-    await this.service.updateAgency(req.params.id, req.body);
-    Logger.info("Agency updated", { agencyId: req.params.id });
+  updateAgency = asyncHandler(async (req: any, res: Response) => {
+    let agencyId;
+    if (req.user?.roles?.includes(UserRole.VP)) {
+      const id = await this.service.getAgenciesByUserId(req.user.id);
+      if (id.length === 0) {
+        throw new AppError(
+          "VP user has no agency assigned, contact Administrator",
+          HttpStatus.FORBIDDEN,
+        );
+      }
+      agencyId = id[0].agency_id;
+    }
+    if (req.user?.roles?.includes(UserRole.SUPER_ADMIN)) {
+      agencyId = req.params.id;
+    }
+    await this.service.updateAgency(agencyId, req.body);
+    Logger.info("Agency updated", { agencyId: agencyId });
     ApiResponse.success(
       res,
       null,

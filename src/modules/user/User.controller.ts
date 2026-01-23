@@ -27,6 +27,7 @@ export class UserController {
   });
 
   public getUser = asyncHandler(async (req: Request, res: Response) => {
+    console.log("Getting user with ID:", req.params.id);
     const user = await this.service.getUserById(req.params.id);
     ApiResponse.success(res, sanitizeUser(user));
   });
@@ -53,6 +54,7 @@ export class UserController {
   });
 
   public getAllUsers = asyncHandler(async (req: any, res: Response) => {
+    console.log("UserController.getAllUsers called by user ID:", req.user.id);
     const users = await this.service.getAllUsers(req.user);
     ApiResponse.success(res, users.map(sanitizeUser));
   });
@@ -60,7 +62,11 @@ export class UserController {
   public forgotPassword = asyncHandler(async (req: Request, res: Response) => {
     const { email } = req.body;
     await this.service.forgotPassword(email);
-    ApiResponse.success(res, null, "If the account exists, a reset link has been sent");
+    ApiResponse.success(
+      res,
+      null,
+      "If the account exists, a reset link has been sent",
+    );
   });
 
   public resetPasswordWithToken = asyncHandler(

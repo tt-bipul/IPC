@@ -265,16 +265,7 @@ export class AgencyRepository {
     conn?: PoolConnection,
   ): Promise<any[]> {
     const rows = await this.db.query<RowDataPacket[]>(
-      `
-    ${this.getAgencyAggregateSelect()}
-    JOIN user_agencies ua ON ua.agency_id = a.id
-    WHERE ua.user_id=?
-    ${
-      includeInactive
-        ? ""
-        : "AND ua.is_active=1 AND a.is_active=1 AND (ad.is_active=1 OR ad.id IS NULL) AND (c.is_active=1 OR c.id IS NULL)"
-    }
-    `,
+      `select * from user_agencies where user_id = ?`,
       [userId],
       conn,
     );
@@ -292,5 +283,57 @@ export class AgencyRepository {
     }
     `,
     );
+  }
+  async getAgencyAssociatedId(
+    type: "address_id" | "contact_id" | "location_id",
+    agencyId: string,
+    conn?: PoolConnection,
+  ): Promise<{
+    address_id?: number;
+    contact_id?: number;
+    location_id?: number;
+  }> {
+    let query = "";
+    let resultKey: "address_id" | "contact_id" | "location_id";
+
+    if (type === "address_id") {
+      query = `
+      SELECT ad.id
+      FROM agency_addresses aa
+      JOIN addresses ad ON ad.id = aa.address_id
+      WHERE aa.agency_id = ?
+        AND ad.is_active = 1
+      LIMIT 1
+    `;
+      resultKey = "address_id";
+    } else if (type === "contact_id") {
+      query = `
+      SELECT c.id
+      FROM agency_contacts ac
+      JOIN contacts c ON c.id = ac.contact_id
+      WHERE ac.agency_id = ?
+        AND c.is_active = 1
+      LIMIT 1
+    `;
+      resultKey = "contact_id";
+    } else {
+      query = `
+      SELECT l.id
+      FROM agency_addresses aa
+      JOIN addresses ad ON ad.id = aa.address_id
+      JOIN locations l ON l.id = ad.location_id
+      WHERE aa.agency_id = ?
+      LIMIT 1
+    `;
+      resultKey = "location_id";
+    }
+
+    const rows = await this.db.query<RowDataPacket[]>(query, [agencyId], conn);
+
+    if (!rows.length) {
+      return {};
+    }
+
+    return { [resultKey]: rows[0].id };
   }
 }

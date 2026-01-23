@@ -9,6 +9,7 @@ import {
 import { Database } from "../../core/Database";
 import { HttpStatus } from "../../constants/HttpStatus";
 import { AppError } from "../../core/ErrorHandler";
+import { ADDRGETNETWORKPARAMS } from "dns";
 
 export class AgencyService {
   private repo = new AgencyRepository();
@@ -103,9 +104,6 @@ export class AgencyService {
       state?: string;
       country?: string;
       postal_code?: string;
-      address_id?: number;
-      contact_id?: number;
-      location_id?: number;
     },
   ): Promise<void> {
     return this.db.withTransaction(async (conn) => {
@@ -118,43 +116,108 @@ export class AgencyService {
         conn,
       );
 
-      if (payload.location_id) {
-        await this.db.query(
-          `UPDATE locations SET city=?, state=?, country=?, pincode=? WHERE id=?`,
-          [
-            payload.city,
-            payload.state,
-            payload.country,
-            payload.postal_code,
-            payload.location_id,
-          ],
-          conn,
-        );
+      const addressRes = await this.repo.getAgencyAssociatedId(
+        "address_id",
+        agencyId,
+        conn,
+      );
+
+      const locationRes = await this.repo.getAgencyAssociatedId(
+        "location_id",
+        agencyId,
+        conn,
+      );
+
+      const contactRes = await this.repo.getAgencyAssociatedId(
+        "contact_id",
+        agencyId,
+        conn,
+      );
+
+      let addressId = addressRes.address_id;
+      let locationId = locationRes.location_id;
+      let contactId = contactRes.contact_id;
+
+      if (
+        payload.address_line_1 ||
+        payload.address_line_2 ||
+        payload.city ||
+        payload.state ||
+        payload.country ||
+        payload.postal_code
+      ) {
+        if (locationId === undefined) {
+          locationId = await this.repo.createLocation(
+            {
+              city: payload.city ?? "NA",
+              state: payload.state ?? "NA",
+              country: payload.country ?? "NA",
+              pincode: payload.postal_code ?? "NA",
+            },
+            conn,
+          );
+        } else {
+          await this.db.query(
+            `UPDATE locations SET city=?, state=?, country=?, pincode=? WHERE id=?`,
+            [
+              payload.city,
+              payload.state,
+              payload.country,
+              payload.postal_code,
+              locationId,
+            ],
+            conn,
+          );
+        }
+
+        if (addressId === undefined) {
+          addressId = await this.repo.createAddress(
+            {
+              address_line_1: payload.address_line_1 ?? "NA",
+              address_line_2: payload.address_line_2 ?? null,
+              location_id: locationId,
+              is_active: 1,
+            },
+            conn,
+          );
+          await this.repo.linkAgencyAddress(agencyId, addressId, conn);
+        } else {
+          await this.db.query(
+            `UPDATE addresses SET address_line_1=?, address_line_2=? WHERE id=?`,
+            [payload.address_line_1, payload.address_line_2 ?? null, addressId],
+            conn,
+          );
+        }
       }
 
-      if (payload.address_id) {
-        await this.db.query(
-          `UPDATE addresses SET address_line_1=?, address_line_2=? WHERE id=?`,
-          [
-            payload.address_line_1,
-            payload.address_line_2 ?? null,
-            payload.address_id,
-          ],
-          conn,
-        );
-      }
-
-      if (payload.contact_id) {
-        await this.db.query(
-          `UPDATE contacts SET email=?, phone_number=?, alternate_phone_number=? WHERE id=?`,
-          [
-            payload.email_address,
-            payload.phone_number ?? null,
-            payload.alternate_phone ?? null,
-            payload.contact_id,
-          ],
-          conn,
-        );
+      if (
+        payload.email_address ||
+        payload.phone_number ||
+        payload.alternate_phone
+      ) {
+        if (contactId === undefined) {
+          contactId = await this.repo.createContact(
+            {
+              email: payload.email_address ?? "NA",
+              phone_number: payload.phone_number ?? null,
+              alternate_phone_number: payload.alternate_phone ?? null,
+              is_active: 1,
+            },
+            conn,
+          );
+          await this.repo.linkAgencyContact(agencyId, contactId, conn);
+        } else {
+          await this.db.query(
+            `UPDATE contacts SET email=?, phone_number=?, alternate_phone_number=? WHERE id=?`,
+            [
+              payload.email_address,
+              payload.phone_number ?? null,
+              payload.alternate_phone ?? null,
+              contactId,
+            ],
+            conn,
+          );
+        }
       }
     });
   }
@@ -220,5 +283,9 @@ export class AgencyService {
 
   public async getAllAgencies(includeInactive = false) {
     return this.repo.getAllAgencies(includeInactive);
+  }
+
+  public async getAgenciesByUserId(userId: string) {
+    return this.repo.getAgenciesByUserId(userId);
   }
 }
