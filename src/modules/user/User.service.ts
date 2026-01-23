@@ -230,6 +230,7 @@ export class UserService {
   }
   public async getAllUsers(currentUser: {
     id: string;
+    agencyId: string;
     roles: string[];
   }): Promise<IUser[]> {
     if (currentUser.roles.includes(UserRole.SUPER_ADMIN)) {

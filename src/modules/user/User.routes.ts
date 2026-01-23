@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { UserController } from "./User.controller";
 import { AuthMiddleware } from "../../middlewares/AuthMiddleware";
+import AgencyID from "./User-Middlewares/User.Middleware";
 
 export class UserRoutes {
   public router: Router;
@@ -29,9 +30,10 @@ export class UserRoutes {
     );
 
     this.router.get(
-      "/",
+      "/get-all-users",
       AuthMiddleware.authenticate,
       AuthMiddleware.restrictTo(["SUPER_ADMIN", "VP"]),
+      // AgencyID,
       this.controller.getAllUsers,
     );
 

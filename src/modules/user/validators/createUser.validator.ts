@@ -31,7 +31,7 @@ const userCreateSchema = Joi.object({
         addressType: Joi.string()
           .valid("Permanent", "Communication")
           .required(),
-      }).unknown(false)
+      }).unknown(false),
     )
     .required(),
 })
@@ -40,9 +40,8 @@ const userCreateSchema = Joi.object({
 
 export function validateUserCreatePayload(
   payload: IUserCreatePayLoad,
-  currentUser: PayloadCurrentUser
+  currentUser: PayloadCurrentUser,
 ): void {
-  // Use abortEarly: false to return all errors
   const { error, value } = userCreateSchema.validate(payload, {
     abortEarly: false,
     convert: false,
@@ -55,7 +54,7 @@ export function validateUserCreatePayload(
   }
 
   const isSuperAdmin = currentUser.roles.includes("SUPER_ADMIN");
-  // isVPBeingCreated is disabled/false as discussed
+
   const isVPBeingCreated = false;
 
   if (isSuperAdmin) {
@@ -70,12 +69,18 @@ export function validateUserCreatePayload(
 
   if (currentUser.roles.includes("VP")) {
     if ("roles" in value || "agencyId" in value) {
-      console.log("DEBUG: VP Check Failed. CurrentUser Roles:", currentUser.roles);
+      console.log(
+        "DEBUG: VP Check Failed. CurrentUser Roles:",
+        currentUser.roles,
+      );
       throw new AppError("VP is not allowed to provide roles or agencyId", 403);
     }
   }
 
   if (errorMessages.length > 0) {
-    throw new AppError(`Invalid request body: ${errorMessages.join(", ")}`, 400);
+    throw new AppError(
+      `Invalid request body: ${errorMessages.join(", ")}`,
+      400,
+    );
   }
 }
