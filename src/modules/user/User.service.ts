@@ -11,11 +11,13 @@ import {
   IUserAddress,
   IUserCreatePayLoad,
   PayloadCurrentUser,
+  UpdateUserPayload,
 } from "./User.types";
+import { AgencyReadRepository } from "../agency/Repositories/read.repository";
+import { AgencyAssociationRepository } from "../agency/Repositories/association.repository";
 import { AppError } from "../../core/ErrorHandler";
 import { env } from "../../config/env";
 import { UserRole } from "./User.types";
-import { AgencyRepository } from "../../modules/agency/Agency.repository";
 import { HttpStatus } from "../../constants/HttpStatus";
 import { sendPasswordResetLink } from "./User.utils";
 export class UserService {
@@ -52,7 +54,8 @@ export class UserService {
         },
         conn,
       );
-      const agencyRepo = new AgencyRepository();
+      const agencyAssocRepo = new AgencyAssociationRepository();
+      const agencyReadRepo = new AgencyReadRepository();
       if (payload.profile) {
         await this.repo.upsertUserProfile(
           { ...payload.profile, user_id: userId },
@@ -60,6 +63,16 @@ export class UserService {
         );
       }
       if (currentUser?.roles?.includes(UserRole.SUPER_ADMIN)) {
+        const VPAlreadyExists = await this.repo.getVPfromAgency(
+          payload.agencyId,
+        );
+        if (
+          VPAlreadyExists.length > 0 &&
+          payload.roles?.includes(UserRole.VP)
+        ) {
+          console.error("[REGISTER] VP already exists for this agency");
+          throw new AppError("VP already exists for this agency", 400);
+        }
         if (payload.roles) {
           for (const roleId of payload.roles) {
             const checkIfRoleExist = await this.roleRepo.getRole(roleId, conn);
@@ -76,7 +89,7 @@ export class UserService {
             );
           }
         }
-        await agencyRepo.assignUserToAgency(
+        await agencyAssocRepo.assignUserToAgency(
           {
             user_id: userId,
             agency_id: payload.agencyId,
@@ -87,13 +100,13 @@ export class UserService {
         );
       }
       if (currentUser?.roles?.includes(UserRole.VP)) {
-        const agency = await agencyRepo.getAgenciesByUserId(
+        const agency = await agencyReadRepo.getAgenciesByUserId(
           currentUser.id,
           false,
           conn,
         );
         if (agency && agency.length > 0) {
-          await agencyRepo.assignUserToAgency(
+          await agencyAssocRepo.assignUserToAgency(
             {
               user_id: userId,
               agency_id: agency[0].agency_id,
@@ -175,8 +188,8 @@ export class UserService {
       throw new AppError("User has no roles assigned", 403);
     }
     if (roles.includes(UserRole.VP)) {
-      const agencyRepo = new AgencyRepository();
-      const agencies = await agencyRepo.getAgenciesByUserId(user.id);
+      const agencyReadRepo = new AgencyReadRepository();
+      const agencies = await agencyReadRepo.getAgenciesByUserId(user.id);
       if (!agencies || agencies.length === 0) {
         throw new AppError(
           "VP user has no agency assigned, contact Administrator",
@@ -207,19 +220,21 @@ export class UserService {
   }
   public async updateUser(
     id: string,
-    payload: Partial<IUser> & { profile?: IUserProfile },
+    payload: UpdateUserPayload,
   ): Promise<void> {
-    const user = await this.repo.getUserById(id);
-    if (!user) {
-      throw new AppError("User not found", 404);
-    }
-    const { profile, ...userData } = payload;
-    if (Object.keys(userData).length > 0) {
-      await this.repo.updateUser(id, userData);
-    }
-    if (profile) {
-      await this.repo.upsertUserProfile({ ...profile, user_id: id });
-    }
+    const { profile, ...userData } = payload
+    console.log(userData);
+    // const user = await this.repo.getUserById(id);
+    // if (!user) {
+    //   throw new AppError("User not found", 404);
+    // }
+    // const { profile, ...userData } = payload;
+    // if (Object.keys(userData).length > 0) {
+    //   await this.repo.updateUser(id, userData);
+    // }
+    // if (profile) {
+    //   await this.repo.upsertUserProfile({ ...profile, user_id: id });
+    // }
   }
   public async deleteUser(id: string): Promise<void> {
     const user = await this.repo.getUserById(id);

@@ -72,3 +72,9 @@ export interface PayloadCurrentUser {
   id: string;
   roles: string[];
 }
+
+export type UpdateUserPayload = Partial<IUser> & {
+  profile?: IUserProfile;
+  phone_numbers?: IUserPhoneNumber[];
+  addresses?: IUserAddress[];
+};

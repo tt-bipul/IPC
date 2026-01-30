@@ -1,17 +1,10 @@
-import { AgencyRepository } from "../modules/agency/Agency.repository";
 import { Database } from "../core/Database";
-
-async function logMessage(message: string): Promise<any> {
-  const agencyRepo = new AgencyRepository();
-  return Database.getInstance().withTransaction(async (conn) => {
-    return await agencyRepo.getAgencyAssociatedId(
-      "address_id",
-      "0c030a31-1106-4fc3-bb09-841558ebc6e0",
-      undefined,
-    );
-  });
+import QueryBuilder from "../core/QueryBuilder";
+import { COLUMNS, TABLES } from "../core/Database.types";
+async function test(): Promise<any> {
+  const q = QueryBuilder.selectAll()
+    .from(TABLES.LOCATIONS)
+    .where(COLUMNS.LOCATIONS.COUNTRY, "INDIA");
+  console.log(q.build());
 }
-
-logMessage("Hello, World!").then((result) => {
-  console.log("Log message result:", result);
-});
+test();

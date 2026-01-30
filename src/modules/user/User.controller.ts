@@ -5,6 +5,7 @@ import { asyncHandler } from "../../utils/AsyncHandler";
 import { AppError } from "../../core/ErrorHandler";
 import { sanitizeUser } from "./User.utils";
 import { validateUserCreatePayload } from "./validators/createUser.validator";
+import { UserRole } from "./User.types";
 
 export class UserController {
   private service = new UserService();
@@ -33,20 +34,13 @@ export class UserController {
   });
 
   public updateUser = asyncHandler(async (req: any, res: Response) => {
-    const currentUser = req.user;
-    if (
-      currentUser.id !== req.params.id &&
-      !currentUser.roles.includes("SUPER_ADMIN")
-    ) {
-      throw new AppError("You can only update your own profile", 403);
-    }
     await this.service.updateUser(req.params.id, req.body);
     ApiResponse.success(res, null, "User updated");
   });
 
   public deleteUser = asyncHandler(async (req: any, res: Response) => {
     const currentUser = req.user;
-    if (!currentUser.roles.includes("SUPER_ADMIN")) {
+    if (!currentUser.roles.includes(UserRole.SUPER_ADMIN)) {
       throw new AppError("Only SUPER_ADMIN can delete users", 403);
     }
     await this.service.deleteUser(req.params.id);

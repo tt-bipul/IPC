@@ -1,7 +1,12 @@
 import { Router } from "express";
 import { UserController } from "./User.controller";
 import { AuthMiddleware } from "../../middlewares/AuthMiddleware";
-import AgencyID from "./User-Middlewares/User.Middleware";
+import {
+  IfUserBelongsToVPAgency,
+  IsVPHavingAgency,
+  MotherOfAllMiddleWareInUserModule,
+} from "./User-Middlewares/User.Middleware";
+import { ValidateUserUpdatePayload } from "./validators/createUser.validator";
 
 export class UserRoutes {
   public router: Router;
@@ -33,20 +38,23 @@ export class UserRoutes {
       "/get-all-users",
       AuthMiddleware.authenticate,
       AuthMiddleware.restrictTo(["SUPER_ADMIN", "VP"]),
-      // AgencyID,
+      IsVPHavingAgency,
       this.controller.getAllUsers,
     );
 
     this.router.get(
       "/:id",
       AuthMiddleware.authenticate,
+
       this.controller.getUser,
     );
 
     this.router.put(
       "/:id",
       AuthMiddleware.authenticate,
+      MotherOfAllMiddleWareInUserModule,
       AuthMiddleware.ValidateRequestBody({ required: true, type: "json" }),
+      ValidateUserUpdatePayload,
       this.controller.updateUser,
     );
 
@@ -56,14 +64,24 @@ export class UserRoutes {
       this.controller.deleteUser,
     );
 
-    this.router.post("/forgot-password", this.controller.forgotPassword);
+    this.router.post(
+      "/forgot-password",
+      AuthMiddleware.ValidateRequestBody({ required: true, type: "json" }),
+      this.controller.forgotPassword,
+    );
 
-    this.router.post("/reset-password", this.controller.resetPasswordWithToken);
+    this.router.post(
+      "/reset-password",
+      AuthMiddleware.ValidateRequestBody({ required: true, type: "json" }),
+      this.controller.resetPasswordWithToken,
+    );
 
     this.router.post(
       "/admin/reset-password",
       AuthMiddleware.authenticate,
+      AuthMiddleware.ValidateRequestBody({ required: true, type: "json" }),
       AuthMiddleware.restrictTo(["SUPER_ADMIN", "VP"]),
+      IfUserBelongsToVPAgency,
       this.controller.resetPasswordByAdmin,
     );
 

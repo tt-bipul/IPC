@@ -36,11 +36,13 @@ export class AgencyController {
     if (req.user?.roles?.includes(UserRole.SUPER_ADMIN)) {
       agencyId = req.params.id;
     }
-    await this.service.updateAgency(agencyId, req.body);
+    const updatedAgency = await this.service.updateAgency(agencyId, req.body);
+
     Logger.info("Agency updated", { agencyId: agencyId });
+
     ApiResponse.success(
       res,
-      null,
+      updatedAgency,
       "Agency updated successfully",
       HttpStatus.OK,
     );

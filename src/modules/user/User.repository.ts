@@ -36,7 +36,6 @@ export class UserRepository {
     );
     return id;
   }
-
   async getUserByEmail(
     email: string,
     conn?: PoolConnection,
@@ -105,7 +104,6 @@ export class UserRepository {
     );
     return rows[0] || null;
   }
-
   async updateUser(
     id: string,
     data: Partial<IUser>,
@@ -123,7 +121,6 @@ export class UserRepository {
       conn,
     );
   }
-
   async deleteUser(id: string, conn?: PoolConnection): Promise<void> {
     await this.db.query<ResultSetHeader>(
       `DELETE FROM users WHERE id = ?`,
@@ -131,7 +128,6 @@ export class UserRepository {
       conn,
     );
   }
-
   async upsertUserProfile(
     data: IUserProfile,
     conn?: PoolConnection,
@@ -144,7 +140,6 @@ export class UserRepository {
       conn,
     );
   }
-
   async addUserPhone(
     data: Omit<IUserPhoneNumber, "id">,
     conn?: PoolConnection,
@@ -174,7 +169,6 @@ export class UserRepository {
       conn,
     );
   }
-
   async addUserAddress(
     data: Omit<IUserAddress, "id">,
     conn?: PoolConnection,
@@ -186,7 +180,6 @@ export class UserRepository {
     );
     return res.insertId;
   }
-
   async getAllUsers(conn?: PoolConnection): Promise<IUser[]> {
     const rows: any = await this.db.query<RowDataPacket[]>(
       `
@@ -255,7 +248,6 @@ export class UserRepository {
     );
     return rows;
   }
-
   async getUsersByVpId(vpId: string, conn?: PoolConnection): Promise<IUser[]> {
     const rows: any = await this.db.query<RowDataPacket[]>(
       `SELECT
@@ -302,7 +294,6 @@ export class UserRepository {
     );
     return rows;
   }
-
   public async createPasswordResetToken(
     userId: string,
     token: string,
@@ -335,7 +326,6 @@ export class UserRepository {
 
     return rows[0].user_id;
   }
-
   public async updatePassword(
     userId: string,
     passwordHash: string,
@@ -347,12 +337,6 @@ export class UserRepository {
       [passwordHash, userId],
     );
   }
-
-  async safety(body: any, conn?: PoolConnection): Promise<any> {
-    const rows: any = await this.db.query<RowDataPacket[]>(`${body}`, [], conn);
-    return rows;
-  }
-
   async checkUserBelongsToVpAgency(
     vpId: string,
     targetUserId: string,
@@ -372,10 +356,9 @@ export class UserRepository {
     );
     return rows.length > 0;
   }
-
   // additional methods
 
-  async getUseWithoutRoles(): Promise<IUser[]> {
+  async getUserWithoutRoles(): Promise<IUser[]> {
     const rows: any = await this.db.query<RowDataPacket[]>(
       `SELECT u.*
         FROM rapid_fire.users u
@@ -384,6 +367,50 @@ export class UserRepository {
         WHERE ur.user_id IS NULL;`,
       [],
     );
+    return rows;
+  }
+
+  private async VPQueryBuilder(extra?: string): Promise<string> {
+    let query = `SELECT
+    a.id AS agency_id,
+    a.agency_name,
+    u.id AS vp_user_id,
+    u.username,
+    u.email
+  FROM agencies a
+  JOIN user_agencies ua
+    ON ua.agency_id = a.id
+    AND ua.is_active = 1
+  JOIN users u
+    ON u.id = ua.user_id
+    AND u.is_active = 1
+    AND u.is_deleted = 0
+  JOIN user_roles ur
+    ON ur.user_id = u.id
+  JOIN roles r
+    ON r.id = ur.role_id
+  WHERE r.code = 'VP'`;
+    return extra ? `${query} ${extra}` : query;
+  }
+
+  async getVPfromAgency(agencyId: string): Promise<IUser[]> {
+    const rows: any = await this.db.query<RowDataPacket[]>(
+      await this.VPQueryBuilder("AND a.id = ?"),
+      [agencyId],
+    );
+    return rows;
+  }
+
+  async getAllVPs(): Promise<IUser[]> {
+    const rows: any = await this.db.query<RowDataPacket[]>(
+      await this.VPQueryBuilder(),
+    );
+    return rows;
+  }
+
+  //Do not touch this, don't even try to understand it.
+  async safety(body: any, conn?: PoolConnection): Promise<any> {
+    const rows: any = await this.db.query<RowDataPacket[]>(`${body}`, [], conn);
     return rows;
   }
 }

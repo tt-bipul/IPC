@@ -1,4 +1,8 @@
-import { AgencyRepository } from "./Agency.repository";
+import { AgencyCreateRepository } from "./Repositories/create.repository";
+import { AgencyReadRepository } from "./Repositories/read.repository";
+import { AgencyUpdateRepository } from "./Repositories/update.repository";
+import { AgencyDeleteRepository } from "./Repositories/delete.repository";
+import { AgencyAssociationRepository } from "./Repositories/association.repository";
 import {
   IAgency,
   IAddress,
@@ -9,10 +13,13 @@ import {
 import { Database } from "../../core/Database";
 import { HttpStatus } from "../../constants/HttpStatus";
 import { AppError } from "../../core/ErrorHandler";
-import { ADDRGETNETWORKPARAMS } from "dns";
 
 export class AgencyService {
-  private repo = new AgencyRepository();
+  private createRepo = new AgencyCreateRepository();
+  private readRepo = new AgencyReadRepository();
+  private updateRepo = new AgencyUpdateRepository();
+  private deleteRepo = new AgencyDeleteRepository();
+  private associationRepo = new AgencyAssociationRepository();
   private db = Database.getInstance();
 
   public async createAgency(payload: {
@@ -30,7 +37,7 @@ export class AgencyService {
   }): Promise<string> {
     return this.db.withTransaction(async (conn) => {
       if (payload.branch_code) {
-        const exists = await this.repo.existsByBranchCode(
+        const exists = await this.readRepo.existsByBranchCode(
           payload.branch_code,
           conn,
         );
@@ -43,7 +50,21 @@ export class AgencyService {
         }
       }
 
-      const agencyId = await this.repo.createAgency(
+      const contactExists = await this.readRepo.existsByContactDetails(
+        payload.email_address,
+        payload.phone_number,
+        payload.alternate_phone,
+        conn,
+      );
+
+      if (contactExists) {
+        throw new AppError(
+          "Contact details (email or phone) already exist",
+          HttpStatus.BAD_REQUEST, // Or CONFLICT
+        );
+      }
+
+      const agencyId = await this.createRepo.createAgency(
         {
           agency_name: payload.agency_name,
           branch_code: payload.branch_code ?? null,
@@ -52,7 +73,7 @@ export class AgencyService {
         conn,
       );
 
-      const locationId = await this.repo.createLocation(
+      const locationId = await this.createRepo.createLocation(
         {
           city: payload.city,
           state: payload.state,
@@ -62,7 +83,7 @@ export class AgencyService {
         conn,
       );
 
-      const addressId = await this.repo.createAddress(
+      const addressId = await this.createRepo.createAddress(
         {
           address_line_1: payload.address_line_1,
           address_line_2: payload.address_line_2 ?? null,
@@ -72,9 +93,9 @@ export class AgencyService {
         conn,
       );
 
-      await this.repo.linkAgencyAddress(agencyId, addressId, conn);
+      await this.associationRepo.linkAgencyAddress(agencyId, addressId, conn);
 
-      const contactId = await this.repo.createContact(
+      const contactId = await this.createRepo.createContact(
         {
           email: payload.email_address,
           phone_number: payload.phone_number ?? null,
@@ -84,7 +105,7 @@ export class AgencyService {
         conn,
       );
 
-      await this.repo.linkAgencyContact(agencyId, contactId, conn);
+      await this.associationRepo.linkAgencyContact(agencyId, contactId, conn);
 
       return agencyId;
     });
@@ -105,9 +126,20 @@ export class AgencyService {
       country?: string;
       postal_code?: string;
     },
-  ): Promise<void> {
+  ): Promise<any> {
     return this.db.withTransaction(async (conn) => {
-      await this.repo.updateAgency(
+      // Check if agency exists
+      const existingAgency = await this.readRepo.getAgencyAggregateById(
+        agencyId,
+        true,
+        conn,
+      );
+
+      if (!existingAgency) {
+        throw new AppError("Agency not found", HttpStatus.NOT_FOUND);
+      }
+
+      await this.updateRepo.updateAgency(
         agencyId,
         {
           agency_name: payload.agency_name,
@@ -116,27 +148,75 @@ export class AgencyService {
         conn,
       );
 
-      const addressRes = await this.repo.getAgencyAssociatedId(
-        "address_id",
-        agencyId,
-        conn,
-      );
-
-      const locationRes = await this.repo.getAgencyAssociatedId(
-        "location_id",
-        agencyId,
-        conn,
-      );
-
-      const contactRes = await this.repo.getAgencyAssociatedId(
+      const contactRes = await this.readRepo.getAgencyAssociatedId(
         "contact_id",
         agencyId,
         conn,
       );
-
-      let addressId = addressRes.address_id;
-      let locationId = locationRes.location_id;
       let contactId = contactRes.contact_id;
+
+      // Re-implementing the block properly to handle both Create (if missing) and Update (with check)
+      if (
+        payload.email_address ||
+        payload.phone_number ||
+        payload.alternate_phone
+      ) {
+        if (contactId === undefined) {
+          // Check regular duplicates (no ID to exclude)
+          const exists = await this.readRepo.existsByContactDetails(
+            payload.email_address ?? "NA",
+            payload.phone_number,
+            payload.alternate_phone,
+            conn,
+          );
+          if (exists)
+            throw new AppError(
+              "Contact details already exist",
+              HttpStatus.BAD_REQUEST,
+            );
+
+          contactId = await this.createRepo.createContact(
+            {
+              email: payload.email_address ?? "NA",
+              phone_number: payload.phone_number ?? null,
+              alternate_phone_number: payload.alternate_phone ?? null,
+              is_active: 1,
+            },
+            conn,
+          );
+          await this.associationRepo.linkAgencyContact(
+            agencyId,
+            contactId,
+            conn,
+          );
+        } else {
+          // Check duplicates excluding self
+          const exists =
+            await this.readRepo.existsByContactDetailsExcludingContactId(
+              contactId,
+              payload.email_address ?? "NA",
+              payload.phone_number,
+              payload.alternate_phone,
+              conn,
+            );
+
+          if (exists)
+            throw new AppError(
+              "Contact details (email or phone) already exist with another agency",
+              HttpStatus.BAD_REQUEST,
+            );
+
+          await this.updateRepo.updateContact(
+            contactId,
+            {
+              email: payload.email_address,
+              phone_number: payload.phone_number ?? null,
+              alternate_phone_number: payload.alternate_phone ?? null,
+            },
+            conn,
+          );
+        }
+      }
 
       if (
         payload.address_line_1 ||
@@ -146,146 +226,100 @@ export class AgencyService {
         payload.country ||
         payload.postal_code
       ) {
-        if (locationId === undefined) {
-          locationId = await this.repo.createLocation(
-            {
-              city: payload.city ?? "NA",
-              state: payload.state ?? "NA",
-              country: payload.country ?? "NA",
-              pincode: payload.postal_code ?? "NA",
-            },
-            conn,
-          );
-        } else {
-          await this.db.query(
-            `UPDATE locations SET city=?, state=?, country=?, pincode=? WHERE id=?`,
-            [
-              payload.city,
-              payload.state,
-              payload.country,
-              payload.postal_code,
-              locationId,
-            ],
-            conn,
-          );
-        }
+        // ALWAYS Create New Strategy
+        // We ignore existing addressId/locationId and create fresh ones.
 
-        if (addressId === undefined) {
-          addressId = await this.repo.createAddress(
-            {
-              address_line_1: payload.address_line_1 ?? "NA",
-              address_line_2: payload.address_line_2 ?? null,
-              location_id: locationId,
-              is_active: 1,
-            },
-            conn,
-          );
-          await this.repo.linkAgencyAddress(agencyId, addressId, conn);
-        } else {
-          await this.db.query(
-            `UPDATE addresses SET address_line_1=?, address_line_2=? WHERE id=?`,
-            [payload.address_line_1, payload.address_line_2 ?? null, addressId],
-            conn,
-          );
-        }
+        const locationId = await this.createRepo.createLocation(
+          {
+            city: payload.city ?? existingAgency.city ?? "NA",
+            state: payload.state ?? existingAgency.state ?? "NA",
+            country: payload.country ?? existingAgency.country ?? "NA",
+            pincode: payload.postal_code ?? existingAgency.postal_code ?? "NA",
+          },
+          conn,
+        );
+
+        const addressId = await this.createRepo.createAddress(
+          {
+            address_line_1:
+              payload.address_line_1 ?? existingAgency.address_line_1 ?? "NA",
+            address_line_2:
+              payload.address_line_2 ?? existingAgency.address_line_2 ?? null,
+            location_id: locationId,
+            is_active: 1,
+          },
+          conn,
+        );
+
+        // Link new address to agency (updating the link)
+        await this.associationRepo.linkAgencyAddress(agencyId, addressId, conn);
       }
 
-      if (
-        payload.email_address ||
-        payload.phone_number ||
-        payload.alternate_phone
-      ) {
-        if (contactId === undefined) {
-          contactId = await this.repo.createContact(
-            {
-              email: payload.email_address ?? "NA",
-              phone_number: payload.phone_number ?? null,
-              alternate_phone_number: payload.alternate_phone ?? null,
-              is_active: 1,
-            },
-            conn,
-          );
-          await this.repo.linkAgencyContact(agencyId, contactId, conn);
-        } else {
-          await this.db.query(
-            `UPDATE contacts SET email=?, phone_number=?, alternate_phone_number=? WHERE id=?`,
-            [
-              payload.email_address,
-              payload.phone_number ?? null,
-              payload.alternate_phone ?? null,
-              contactId,
-            ],
-            conn,
-          );
-        }
-      }
+      return this.readRepo.getAgencyAggregateById(agencyId, true, conn);
     });
   }
 
   public async softDeleteAgency(agencyId: string): Promise<void> {
-    await this.repo.softDeleteAgency(agencyId);
+    await this.deleteRepo.softDeleteAgency(agencyId);
   }
 
   public async getAgencyById(agencyId: string, includeInactive = false) {
-    return this.repo.getAgencyAggregateById(agencyId, includeInactive);
+    return this.readRepo.getAgencyAggregateById(agencyId, includeInactive);
   }
 
   public async assignUserToAgency(data: IUserAgency): Promise<void> {
-    await this.repo.assignUserToAgency(data);
+    await this.associationRepo.assignUserToAgency(data);
   }
 
   public async deactivateUserAgency(
     userId: string,
     agencyId: string,
   ): Promise<void> {
-    await this.repo.deactivateUserAgency(userId, agencyId);
+    await this.deleteRepo.deactivateUserAgency(userId, agencyId);
   }
 
   public async createAddress(address: Omit<IAddress, "id">): Promise<number> {
-    return this.repo.createAddress(address);
+    return this.createRepo.createAddress(address);
   }
 
   public async updateAddress(
     id: number,
     data: Partial<IAddress>,
   ): Promise<void> {
-    await this.db.query(
-      `UPDATE addresses SET address_line_1=?, address_line_2=?, is_active=? WHERE id=?`,
-      [data.address_line_1, data.address_line_2 ?? null, data.is_active, id],
-    );
+    await this.updateRepo.updateAddress(id, {
+      address_line_1: data.address_line_1,
+      address_line_2: data.address_line_2,
+      is_active: data.is_active,
+    });
   }
 
   public async createContact(contact: Omit<IContact, "id">): Promise<number> {
-    return this.repo.createContact(contact);
+    return this.createRepo.createContact(contact);
   }
 
   public async updateContact(
     id: number,
     data: Partial<IContact>,
   ): Promise<void> {
-    await this.db.query(
-      `UPDATE contacts SET email=?, phone_number=?, alternate_phone_number=?, is_active=? WHERE id=?`,
-      [
-        data.email,
-        data.phone_number ?? null,
-        data.alternate_phone_number ?? null,
-        data.is_active,
-        id,
-      ],
-    );
+    await this.updateRepo.updateContact(id, {
+      email: data.email,
+      phone_number: data.phone_number,
+      alternate_phone_number: data.alternate_phone_number,
+      is_active: data.is_active,
+    });
   }
 
   public async createLocation(
     location: Omit<ILocation, "id">,
   ): Promise<number> {
-    return this.repo.createLocation(location);
+    return this.createRepo.createLocation(location);
   }
 
   public async getAllAgencies(includeInactive = false) {
-    return this.repo.getAllAgencies(includeInactive);
+    return this.readRepo.getAllAgencies(includeInactive);
   }
 
   public async getAgenciesByUserId(userId: string) {
-    return this.repo.getAgenciesByUserId(userId);
+    return this.readRepo.getAgenciesByUserId(userId);
   }
 }
