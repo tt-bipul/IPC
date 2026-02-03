@@ -49,8 +49,21 @@ export class UserController {
 
   public getAllUsers = asyncHandler(async (req: any, res: Response) => {
     console.log("UserController.getAllUsers called by user ID:", req.user.id);
-    const users = await this.service.getAllUsers(req.user);
-    ApiResponse.success(res, users.map(sanitizeUser));
+    const { page, limit, search } = req.query;
+    const result = await this.service.getAllUsers(req.user, {
+      page: Number(page) || 1,
+      limit: Number(limit) || 10,
+      search: search as string,
+    });
+    ApiResponse.success(res, {
+      users: result.data.map(sanitizeUser),
+      pagination: {
+        total: result.total,
+        page: result.page,
+        limit: result.limit,
+        totalPages: Math.ceil(result.total / result.limit),
+      },
+    });
   });
 
   public forgotPassword = asyncHandler(async (req: Request, res: Response) => {

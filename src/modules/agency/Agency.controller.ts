@@ -102,8 +102,21 @@ export class AgencyController {
   });
 
   getAllAgencies = asyncHandler(async (req: Request, res: Response) => {
+    const page = Number(req.query.page) || 1;
+    const limit = Number(req.query.limit) || 10;
+    const search = req.query.search as string;
+    const city = req.query.city as string;
+    const state = req.query.state as string;
     const includeInactive = req.query.includeInactive === "true";
-    const data = await this.service.getAllAgencies(includeInactive);
+
+    const data = await this.service.getAllAgencies({
+      page,
+      limit,
+      search,
+      city,
+      state,
+      includeInactive,
+    });
     ApiResponse.success(res, data);
   });
 }

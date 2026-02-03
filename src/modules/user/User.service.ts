@@ -12,6 +12,7 @@ import {
   IUserCreatePayLoad,
   PayloadCurrentUser,
   UpdateUserPayload,
+  UserQueryOptions,
 } from "./User.types";
 import { AgencyReadRepository } from "../agency/Repositories/read.repository";
 import { AgencyAssociationRepository } from "../agency/Repositories/association.repository";
@@ -311,15 +312,18 @@ export class UserService {
     }
     await this.repo.deleteUser(id);
   }
-  public async getAllUsers(currentUser: {
-    id: string;
-    agencyId: string;
-    roles: string[];
-  }): Promise<IUser[]> {
+  public async getAllUsers(
+    currentUser: {
+      id: string;
+      agencyId: string;
+      roles: string[];
+    },
+    options: UserQueryOptions,
+  ): Promise<any> {
     if (currentUser.roles.includes(UserRole.SUPER_ADMIN)) {
-      return this.repo.getAllUsers();
+      return this.repo.getAllUsers(options);
     } else if (currentUser.roles.includes(UserRole.VP)) {
-      return this.repo.getUsersByVpId(currentUser.id);
+      return this.repo.getUsersByVpId(currentUser.id, options);
     } else {
       throw new AppError("Access denied", 403);
     }

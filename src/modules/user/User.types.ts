@@ -78,3 +78,9 @@ export type UpdateUserPayload = Partial<IUser> & {
   phones?: IUserPhoneNumber[];
   addresses?: IUserAddress[];
 };
+
+export interface UserQueryOptions {
+  page: number;
+  limit: number;
+  search?: string;
+}

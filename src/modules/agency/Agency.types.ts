@@ -31,6 +31,15 @@ export interface IContact {
   is_active: number;
 }
 
+export interface IAgencyQueryParams {
+  page?: number;
+  limit?: number;
+  search?: string;
+  includeInactive?: boolean;
+  city?: string;
+  state?: string;
+}
+
 export interface IUserAgency {
   user_id: string;
   agency_id: string;

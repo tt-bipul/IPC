@@ -9,6 +9,7 @@ import {
   IContact,
   ILocation,
   IUserAgency,
+  IAgencyQueryParams,
 } from "./Agency.types";
 import { Database } from "../../core/Database";
 import { HttpStatus } from "../../constants/HttpStatus";
@@ -21,6 +22,12 @@ export class AgencyService {
   private deleteRepo = new AgencyDeleteRepository();
   private associationRepo = new AgencyAssociationRepository();
   private db = Database.getInstance();
+
+  // ... existing code ...
+
+  public async getAllAgencies(params: IAgencyQueryParams) {
+    return this.readRepo.getAllAgencies(params);
+  }
 
   public async createAgency(payload: {
     agency_name: string;
@@ -313,10 +320,6 @@ export class AgencyService {
     location: Omit<ILocation, "id">,
   ): Promise<number> {
     return this.createRepo.createLocation(location);
-  }
-
-  public async getAllAgencies(includeInactive = false) {
-    return this.readRepo.getAllAgencies(includeInactive);
   }
 
   public async getAgenciesByUserId(userId: string) {

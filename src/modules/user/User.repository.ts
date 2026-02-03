@@ -9,6 +9,7 @@ import {
   IUserAddress,
   IRole,
   IUserRole,
+  UserQueryOptions,
 } from "./User.types";
 
 export class UserRepository {
@@ -267,9 +268,31 @@ export class UserRepository {
     );
     return res.insertId;
   }
-  async getAllUsers(conn?: PoolConnection): Promise<IUser[]> {
-    const rows: any = await this.db.query<RowDataPacket[]>(
-      `
+  async getAllUsers(
+    options?: UserQueryOptions,
+    conn?: PoolConnection,
+  ): Promise<{
+    data: IUser[];
+    total: number;
+    page: number;
+    limit: number;
+  }> {
+    const { page = 1, limit = 10, search } = options || {};
+    const offset = (page - 1) * limit;
+
+    let whereClause = "";
+    const params: any[] = [];
+
+    if (search) {
+      whereClause = `WHERE u.username LIKE ? OR u.email LIKE ?`;
+      params.push(`%${search}%`, `%${search}%`);
+    }
+
+    const countQuery = `SELECT COUNT(*) as total FROM users u ${whereClause}`;
+    const countResult: any = await this.db.query(countQuery, params, conn);
+    const total = countResult[0].total;
+
+    const query = `
     SELECT 
       u.*,
       up.first_name,
@@ -329,15 +352,61 @@ export class UserRepository {
 
     FROM users u
     LEFT JOIN user_profiles up ON up.user_id = u.id
-    `,
-      [],
-      conn,
-    );
-    return rows;
+    ${whereClause}
+    LIMIT ${limit} OFFSET ${offset}
+    `;
+
+    // params.push(limit, offset); // Removed
+
+    const rows: any = await this.db.query<RowDataPacket[]>(query, params, conn);
+    return { data: rows, total, page, limit };
   }
-  async getUsersByVpId(vpId: string, conn?: PoolConnection): Promise<IUser[]> {
-    const rows: any = await this.db.query<RowDataPacket[]>(
-      `
+  async getUsersByVpId(
+    vpId: string,
+    options?: UserQueryOptions,
+    conn?: PoolConnection,
+  ): Promise<{
+    data: IUser[];
+    total: number;
+    page: number;
+    limit: number;
+  }> {
+    const { page = 1, limit = 10, search } = options || {};
+    const offset = (page - 1) * limit;
+
+    let searchCondition = "";
+    const searchParams: any[] = [];
+
+    if (search) {
+      searchCondition = `AND (u.username LIKE ? OR u.email LIKE ?)`;
+      searchParams.push(`%${search}%`, `%${search}%`);
+    }
+
+    const baseWhere = `
+      WHERE EXISTS (
+        SELECT 1 
+        FROM user_agencies uag 
+        JOIN user_agencies base_ua ON base_ua.agency_id = uag.agency_id
+        WHERE uag.user_id = u.id 
+          AND base_ua.user_id = ?
+          AND uag.is_active = 1 
+          AND base_ua.is_active = 1
+      )
+      AND EXISTS (
+        SELECT 1
+        FROM user_roles ur_check
+        JOIN roles r_check ON r_check.id = ur_check.role_id
+        WHERE ur_check.user_id = u.id AND r_check.code = 'AGENT'
+      )
+      ${searchCondition}
+    `;
+
+    const countParams = [vpId, ...searchParams];
+    const countQuery = `SELECT COUNT(*) as total FROM users u ${baseWhere}`;
+    const countResult: any = await this.db.query(countQuery, countParams, conn);
+    const total = countResult[0].total;
+
+    const query = `
     SELECT 
       u.*,
       up.first_name,
@@ -397,26 +466,18 @@ export class UserRepository {
 
     FROM users u
     LEFT JOIN user_profiles up ON up.user_id = u.id
-    WHERE EXISTS (
-      SELECT 1 
-      FROM user_agencies uag 
-      JOIN user_agencies base_ua ON base_ua.agency_id = uag.agency_id
-      WHERE uag.user_id = u.id 
-        AND base_ua.user_id = ?
-        AND uag.is_active = 1 
-        AND base_ua.is_active = 1
-    )
-    AND EXISTS (
-      SELECT 1
-      FROM user_roles ur_check
-      JOIN roles r_check ON r_check.id = ur_check.role_id
-      WHERE ur_check.user_id = u.id AND r_check.code = 'AGENT'
-    )
-    `,
-      [vpId],
+    ${baseWhere}
+    LIMIT ${limit} OFFSET ${offset}
+    `;
+
+    const queryParams = [vpId, ...searchParams]; // Removed limit, offset
+
+    const rows: any = await this.db.query<RowDataPacket[]>(
+      query,
+      queryParams,
       conn,
     );
-    return rows;
+    return { data: rows, total, page, limit };
   }
   public async createPasswordResetToken(
     userId: string,

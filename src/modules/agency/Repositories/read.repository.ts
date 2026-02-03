@@ -1,6 +1,6 @@
 import { Database } from "../../../core/Database";
 import { PoolConnection, RowDataPacket } from "mysql2/promise";
-import { ILocation } from "../Agency.types";
+import { ILocation, IAgencyQueryParams } from "../Agency.types";
 import { AppError } from "../../../core/ErrorHandler";
 import { HttpStatus } from "../../../constants/HttpStatus";
 import QueryBuilder from "../../../core/QueryBuilder";
@@ -75,7 +75,19 @@ export class AgencyReadRepository {
     return this.db.query<RowDataPacket[]>(sql, params, conn);
   }
 
-  async getAllAgencies(includeInactive = false): Promise<RowDataPacket[]> {
+  async getAllAgencies(params: IAgencyQueryParams): Promise<{
+    data: RowDataPacket[];
+    meta: { total: number; page: number; limit: number };
+  }> {
+    const {
+      page = 1,
+      limit = 10,
+      search,
+      city,
+      state,
+      includeInactive,
+    } = params;
+
     const q = QueryBuilder.selectAll()
       .select([
         "a.id AS agency_id",
@@ -91,6 +103,7 @@ export class AgencyReadRepository {
         "l.state",
         "l.country",
         "l.pincode AS postal_code",
+        "count(*) over() as total_count",
       ])
       .from(`${TABLES.AGENCIES} a`)
       .join("agency_addresses aa", "aa.agency_id", "=", "a.id", "LEFT")
@@ -99,14 +112,43 @@ export class AgencyReadRepository {
       .join("agency_contacts ac", "ac.agency_id", "=", "a.id", "LEFT")
       .join("contacts c", "c.id", "=", "ac.contact_id", "LEFT");
 
-    let { sql, params } = q.build();
-
     if (!includeInactive) {
-      sql +=
-        " WHERE a.is_active=1 AND (ad.is_active=1 OR ad.id IS NULL) AND (c.is_active=1 OR c.id IS NULL)";
+      q.whereRaw(
+        "a.is_active=1 AND (ad.is_active=1 OR ad.id IS NULL) AND (c.is_active=1 OR c.id IS NULL)",
+      );
     }
 
-    return this.db.query<RowDataPacket[]>(sql, params);
+    if (city) {
+      q.whereLike("l.city", `%${city}%`);
+    }
+
+    if (state) {
+      q.whereLike("l.state", `%${state}%`);
+    }
+
+    if (search) {
+      q.whereRaw(
+        "(a.agency_name LIKE ? OR c.email LIKE ? OR c.phone_number LIKE ?)",
+        [`%${search}%`, `%${search}%`, `%${search}%`],
+      );
+    }
+
+    q.paginate(page, limit);
+
+    const { sql, params: queryParams } = q.build();
+
+    const rows = await this.db.query<RowDataPacket[]>(sql, queryParams);
+
+    const total = rows.length > 0 ? rows[0].total_count : 0;
+
+    return {
+      data: rows,
+      meta: {
+        total,
+        page,
+        limit,
+      },
+    };
   }
 
   async getAgencyAssociatedId(
