@@ -45,7 +45,7 @@ export class UserRoutes {
     this.router.get(
       "/:id",
       AuthMiddleware.authenticate,
-
+      MotherOfAllMiddleWareInUserModule,
       this.controller.getUser,
     );
 
