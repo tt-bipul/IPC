@@ -222,20 +222,88 @@ export class UserService {
     id: string,
     payload: UpdateUserPayload,
   ): Promise<void> {
-    const { profile, ...userData } = payload
-    console.log(userData);
-    // const user = await this.repo.getUserById(id);
-    // if (!user) {
-    //   throw new AppError("User not found", 404);
-    // }
-    // const { profile, ...userData } = payload;
-    // if (Object.keys(userData).length > 0) {
-    //   await this.repo.updateUser(id, userData);
-    // }
-    // if (profile) {
-    //   await this.repo.upsertUserProfile({ ...profile, user_id: id });
-    // }
+    const user = await this.repo.getUserById(id);
+    if (!user) {
+      throw new AppError("User not found", 404);
+    }
+    const { profile, phones, addresses, ...userData } = payload as any;
+
+    if (Object.keys(userData).length > 0) {
+      await this.repo.updateUser(id, userData);
+    }
+    if (profile) {
+      await this.repo.upsertUserProfile({ ...profile, user_id: id });
+    }
+    if (phones && Array.isArray(phones)) {
+      for (const phone of phones) {
+        if (phone.id) {
+          const belongsToUser = await this.repo.checkPhoneBelongsToUser(
+            phone.id,
+            id,
+          );
+          if (!belongsToUser) {
+            throw new AppError(
+              "Phone number does not belong to user",
+              HttpStatus.FORBIDDEN,
+            );
+          }
+
+          if (phone.phone_number) {
+            const exists = await this.repo.checkDuplicateUserPhoneWithExclude(
+              phone.phone_number,
+              phone.id,
+            );
+            if (exists) {
+              throw new AppError(
+                `Phone number ${phone.phone_number} already in use`,
+                HttpStatus.CONFLICT,
+              );
+            }
+            await this.repo.updateUserPhone(phone.id, phone.phone_number);
+          }
+        } else if (phone.phone_number) {
+          const exists = await this.repo.checkDuplicateUserPhone(
+            phone.phone_number,
+          );
+          if (exists) {
+            throw new AppError(
+              `Phone number ${phone.phone_number} already in use`,
+              HttpStatus.CONFLICT,
+            );
+          }
+          await this.repo.addUserPhone({
+            user_id: id,
+            phone_number: phone.phone_number,
+          });
+        }
+      }
+    }
+    if (addresses && Array.isArray(addresses)) {
+      for (const addr of addresses) {
+        if (addr.id) {
+          const belongsToUser = await this.repo.checkAddressBelongsToUser(
+            addr.id,
+            id,
+          );
+          if (!belongsToUser) {
+            throw new AppError(
+              "Address does not belong to user",
+              HttpStatus.FORBIDDEN,
+            );
+          }
+          await this.repo.updateUserAddress(addr.id, addr);
+        } else if (addr.address) {
+          await this.repo.addUserAddress({
+            user_id: id,
+            address: addr.address,
+            country: addr.country,
+            addressType: addr.addressType,
+          });
+        }
+      }
+    }
   }
+
   public async deleteUser(id: string): Promise<void> {
     const user = await this.repo.getUserById(id);
     if (!user) {

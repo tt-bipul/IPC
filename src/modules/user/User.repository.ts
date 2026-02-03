@@ -185,10 +185,74 @@ export class UserRepository {
     );
     return rows[0].count > 0;
   }
+  async checkDuplicateUserPhoneWithExclude(
+    phoneNumber: string,
+    excludeId: number,
+    conn?: PoolConnection,
+  ): Promise<boolean> {
+    const rows = await this.db.query<{ count: number }[]>(
+      `SELECT COUNT(*) as count FROM user_phone_numbers WHERE phone_number = ? AND id != ?`,
+      [phoneNumber, excludeId],
+      conn,
+    );
+    return rows[0].count > 0;
+  }
+  async checkPhoneBelongsToUser(
+    phoneId: number,
+    userId: string,
+    conn?: PoolConnection,
+  ): Promise<boolean> {
+    const rows = await this.db.query<{ count: number }[]>(
+      `SELECT COUNT(*) as count FROM user_phone_numbers WHERE id = ? AND user_id = ?`,
+      [phoneId, userId],
+      conn,
+    );
+    return rows[0].count > 0;
+  }
+  async checkAddressBelongsToUser(
+    addressId: number,
+    userId: string,
+    conn?: PoolConnection,
+  ): Promise<boolean> {
+    const rows = await this.db.query<{ count: number }[]>(
+      `SELECT COUNT(*) as count FROM user_addresses WHERE id = ? AND user_id = ?`,
+      [addressId, userId],
+      conn,
+    );
+    return rows[0].count > 0;
+  }
   async removeUserPhone(id: number, conn?: PoolConnection): Promise<void> {
     await this.db.query<ResultSetHeader>(
       `DELETE FROM user_phone_numbers WHERE id=?`,
       [id],
+      conn,
+    );
+  }
+  async updateUserPhone(
+    id: number,
+    phoneNumber: string,
+    conn?: PoolConnection,
+  ): Promise<void> {
+    await this.db.query<ResultSetHeader>(
+      `UPDATE user_phone_numbers SET phone_number=? WHERE id=?`,
+      [phoneNumber, id],
+      conn,
+    );
+  }
+  async updateUserAddress(
+    id: number,
+    data: Partial<IUserAddress>,
+    conn?: PoolConnection,
+  ): Promise<void> {
+    const keys = Object.keys(data).filter((k) => k !== "id" && k !== "user_id");
+    if (keys.length === 0) return;
+
+    const setClauses = keys.map((key) => `${key}=?`).join(", ");
+    const values = keys.map((key) => (data as any)[key]);
+
+    await this.db.query<ResultSetHeader>(
+      `UPDATE user_addresses SET ${setClauses} WHERE id=?`,
+      [...values, id],
       conn,
     );
   }

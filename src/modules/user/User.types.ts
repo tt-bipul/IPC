@@ -75,6 +75,6 @@ export interface PayloadCurrentUser {
 
 export type UpdateUserPayload = Partial<IUser> & {
   profile?: IUserProfile;
-  phone_numbers?: IUserPhoneNumber[];
+  phones?: IUserPhoneNumber[];
   addresses?: IUserAddress[];
 };
