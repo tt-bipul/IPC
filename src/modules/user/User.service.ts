@@ -67,13 +67,31 @@ export class UserService {
         const VPAlreadyExists = await this.repo.getVPfromAgency(
           payload.agencyId,
         );
-        if (
-          VPAlreadyExists.length > 0 &&
-          payload.roles?.includes(UserRole.VP)
-        ) {
-          console.error("[REGISTER] VP already exists for this agency");
-          throw new AppError("VP already exists for this agency", 400);
+        if (payload.roles) {
+          let isVpBeingAssigned = false;
+          for (const roleInput of payload.roles) {
+            const role = await this.roleRepo.getRole(roleInput, conn);
+            if (role && role.code === UserRole.VP) {
+              isVpBeingAssigned = true;
+              break; // Optimization: Found VP, no need to check others for this specific validation
+            }
+          }
+
+          if (VPAlreadyExists.length > 0 && isVpBeingAssigned) {
+            console.error("[REGISTER] VP already exists for this agency");
+            throw new AppError("VP already exists for this agency", 400);
+          }
         }
+
+        const agencyExists = await agencyReadRepo.existsById(
+          payload.agencyId,
+          conn,
+        );
+        if (!agencyExists) {
+          console.error("[REGISTER] agency not found", payload.agencyId);
+          throw new AppError("Target Agency not found", HttpStatus.NOT_FOUND);
+        }
+
         if (payload.roles) {
           for (const roleId of payload.roles) {
             const checkIfRoleExist = await this.roleRepo.getRole(roleId, conn);

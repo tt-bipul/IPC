@@ -23,6 +23,17 @@ export class AgencyReadRepository {
     return rows.length > 0;
   }
 
+  async existsById(agencyId: string, conn?: PoolConnection): Promise<boolean> {
+    const q = QueryBuilder.selectAll()
+      .select(["1"])
+      .from(TABLES.AGENCIES)
+      .where("id", agencyId)
+      .limit(1);
+    const { sql, params } = q.build();
+    const rows = await this.db.query<RowDataPacket[]>(sql, params, conn);
+    return rows.length > 0;
+  }
+
   async getAgencyAggregateById(
     agencyId: string,
     includeInactive = false,
