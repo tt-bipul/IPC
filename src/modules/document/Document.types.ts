@@ -1,9 +1,7 @@
 export interface IDocument {
-    id: string;
-    original_name: string;
-    mime_type: string;
-    size: number;
-    path: string;
-    uploaded_by: string;
-    created_at?: Date;
+  id: string;
+  agency_id: string;
+  uploaded_by: string;
+  status: string;
+  created_at?: Date;
 }

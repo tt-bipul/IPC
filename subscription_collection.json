@@ -1,0 +1,331 @@
+{
+  "info": {
+    "_postman_id": "subscription-system-id",
+    "name": "Subscription System",
+    "description": "Collection for testing Subscription and Document modules",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Login (Admin)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "pm.environment.set(\"token\", jsonData.data.token);",
+                  "pm.environment.set(\"adminUserId\", jsonData.data.user.id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "json",
+              "raw": "{\n    \"email\": \"admin@test.com\",\n    \"password\": \"admin123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Register User",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "json",
+              "raw": "{\n    \"username\": \"testuser\",\n    \"email\": \"testuser@test.com\",\n    \"password\": \"password123\",\n    \"roles\": [2],\n    \"agencyId\": \"{{agencyId}}\",\n    \"profile\": {\n        \"first_name\": \"Test\",\n        \"last_name\": \"User\"\n    },\n    \"phones\": [\"1234567890\"],\n    \"addresses\": [{\n        \"address\": \"123 Main St\",\n        \"country\": \"US\",\n        \"addressType\": \"Permanent\"\n    }]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "register"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Subscription Plans",
+      "item": [
+        {
+          "name": "Create Plan",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "pm.environment.set(\"planId\", jsonData.data.id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "json",
+              "raw": "{\n    \"code\": \"GOLD_TIER\",\n    \"name\": \"Gold Plan\",\n    \"max_documents\": 100,\n    \"validity_days\": 30,\n    \"price\": 49.99\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/subscriptions/plans",
+              "host": ["{{baseUrl}}"],
+              "path": ["subscriptions", "plans"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "List Active Plans",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/subscriptions/plans",
+              "host": ["{{baseUrl}}"],
+              "path": ["subscriptions", "plans"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Plan by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/subscriptions/plans/{{planId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["subscriptions", "plans", "{{planId}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Plan",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "json",
+              "raw": "{\n    \"name\": \"Gold Plan Updated\",\n    \"price\": 59.99\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/subscriptions/plans/{{planId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["subscriptions", "plans", "{{planId}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete (Disable) Plan",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/subscriptions/plans/{{planId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["subscriptions", "plans", "{{planId}}"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Agency Subscriptions",
+      "item": [
+        {
+          "name": "Assign Subscription",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "json",
+              "raw": "{\n    \"subscription_plan_id\": {{planId}}\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/agencies/{{agencyId}}/subscriptions",
+              "host": ["{{baseUrl}}"],
+              "path": ["agencies", "{{agencyId}}", "subscriptions"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Active Subscription",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/agencies/{{agencyId}}/subscriptions/current",
+              "host": ["{{baseUrl}}"],
+              "path": ["agencies", "{{agencyId}}", "subscriptions", "current"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Subscription History",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/agencies/{{agencyId}}/subscriptions/history",
+              "host": ["{{baseUrl}}"],
+              "path": ["agencies", "{{agencyId}}", "subscriptions", "history"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Usage",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/agencies/{{agencyId}}/usage",
+              "host": ["{{baseUrl}}"],
+              "path": ["agencies", "{{agencyId}}", "usage"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Documents",
+      "item": [
+        {
+          "name": "Upload Document",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "documents",
+                  "type": "file",
+                  "src": []
+                },
+                {
+                  "key": "agency_id",
+                  "value": "{{agencyId}}",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/documents",
+              "host": ["{{baseUrl}}"],
+              "path": ["documents"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "List Documents by Agency",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/documents/agency/{{agencyId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["documents", "agency", "{{agencyId}}"]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:4000"
+    },
+    {
+      "key": "token",
+      "value": ""
+    },
+    {
+      "key": "planId",
+      "value": ""
+    },
+    {
+      "key": "agencyId",
+      "value": ""
+    }
+  ]
+}

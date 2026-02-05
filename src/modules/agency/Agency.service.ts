@@ -275,6 +275,10 @@ export class AgencyService {
   }
 
   public async assignUserToAgency(data: IUserAgency): Promise<void> {
+    const agencyExists = await this.readRepo.existsById(data.agency_id);
+    if (!agencyExists) {
+      throw new AppError("Agency not found", HttpStatus.NOT_FOUND);
+    }
     await this.associationRepo.assignUserToAgency(data);
   }
 
