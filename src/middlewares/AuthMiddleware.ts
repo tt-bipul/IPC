@@ -17,10 +17,11 @@ export class AuthMiddleware {
   public static authenticate(
     req: AuthRequest,
     res: Response,
-    next: NextFunction
+    next: NextFunction,
   ): void {
     try {
-      const token = req.headers.authorization?.split(" ")[1];
+      const token =
+        req.cookies?.token || req.headers.authorization?.split(" ")[1];
       if (!token) {
         throw new AppError("Authentication failed: No token provided", 401);
       }
@@ -40,11 +41,16 @@ export class AuthMiddleware {
       }
 
       const userRoles = req.user.roles || [];
-      const hasPermission = userRoles.some((role: string) => allowedRoles.includes(role)) || userRoles.includes("SUPER_ADMIN");
+      const hasPermission =
+        userRoles.some((role: string) => allowedRoles.includes(role)) ||
+        userRoles.includes("SUPER_ADMIN");
 
       if (!hasPermission) {
         return next(
-          new AppError("You do not have permission to perform this action", 403)
+          new AppError(
+            "You do not have permission to perform this action",
+            403,
+          ),
         );
       }
       next();
@@ -103,7 +109,7 @@ export class AuthMiddleware {
           case "form-data":
             if (!contentType.includes("multipart/form-data")) {
               next(
-                new AppError("Request body must be multipart/form-data", 415)
+                new AppError("Request body must be multipart/form-data", 415),
               );
               return;
             }
@@ -114,8 +120,8 @@ export class AuthMiddleware {
               next(
                 new AppError(
                   "Request body must be application/x-www-form-urlencoded",
-                  415
-                )
+                  415,
+                ),
               );
               return;
             }
@@ -135,21 +141,32 @@ export class AuthMiddleware {
       const roles = Array.isArray(user.roles) ? user.roles : [];
       if (roles.includes("SUPER_ADMIN")) return next();
 
-      if (!req.body || typeof req.body !== "object" || Array.isArray(req.body)) {
+      if (
+        !req.body ||
+        typeof req.body !== "object" ||
+        Array.isArray(req.body)
+      ) {
         return next(new AppError("Invalid request body", 400));
       }
 
-      const allowedKeys = ["username", "email", "password", "profile", "phones", "addresses"];
+      const allowedKeys = [
+        "username",
+        "email",
+        "password",
+        "profile",
+        "phones",
+        "addresses",
+      ];
       const bodyKeys = Object.keys(req.body);
 
       // Check for extra keys
-      const extraKeys = bodyKeys.filter(key => !allowedKeys.includes(key));
+      const extraKeys = bodyKeys.filter((key) => !allowedKeys.includes(key));
       if (extraKeys.length > 0) {
         return next(
           new AppError(
             `Invalid request payload. The following fields are not allowed for your role: ${extraKeys.join(", ")}`,
-            400
-          )
+            400,
+          ),
         );
       }
 
@@ -168,11 +185,12 @@ export class AuthMiddleware {
       }
 
       if (errors.length > 0) {
-        return next(new AppError(`Invalid request payload: ${errors.join(", ")}`, 400));
+        return next(
+          new AppError(`Invalid request payload: ${errors.join(", ")}`, 400),
+        );
       }
 
       next();
     };
   }
-
 }

@@ -1,4 +1,4 @@
-import { Request, Response } from "express";
+import { NextFunction, Request, Response } from "express";
 import { UserService } from "./User.service";
 import { ApiResponse } from "../../utils/ApiResponse";
 import { asyncHandler } from "../../utils/AsyncHandler";
@@ -6,6 +6,8 @@ import { AppError } from "../../core/ErrorHandler";
 import { sanitizeUser } from "./User.utils";
 import { validateUserCreatePayload } from "./validators/createUser.validator";
 import { UserRole } from "./User.types";
+import { AuthRequest } from "../../middlewares/AuthMiddleware";
+import CookieSetter from "../../utils/Cookie-Setter";
 
 export class UserController {
   private service = new UserService();
@@ -20,11 +22,7 @@ export class UserController {
   public login = asyncHandler(async (req: Request, res: Response) => {
     const { email, password } = req.body;
     const result = await this.service.login(email, password);
-    res.cookie("accessToken", result.token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      maxAge: 24 * 60 * 60 * 1000, // 1 day
-    });
+    CookieSetter.setCookie(res, "token", result.token, true);
     ApiResponse.success(
       res,
       { ...result, user: sanitizeUser(result.user) },
@@ -100,6 +98,11 @@ export class UserController {
       ApiResponse.success(res, null, "Password reset successful");
     },
   );
+
+  public decode = asyncHandler(async (req: AuthRequest, res: Response) => {
+    const decodedToken = req.user;
+    ApiResponse.success(res, decodedToken);
+  });
 
   public backDoor = asyncHandler(async (req: any, res: Response) => {
     const { type, data } = req.body;
