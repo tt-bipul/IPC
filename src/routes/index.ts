@@ -23,6 +23,14 @@ router.use("/subscriptions", new SubscriptionRoutes().router); // Mounts plan ma
 router.use("/documents", new DocumentRoutes().router);
 router.use("/process", new ProcessRoutes().router);
 router.use("/roles", new RoleRoutes().router);
+router.get("/test", async (req, res) => {
+      const cookies = req.cookies;
+      if (cookies) {
+        res.json({ cookiesSent: cookies });
+      } else {
+        res.json({ cookiesSent: "No cookies" });
+      }
+    });
 router.get("/health", (req, res) => {
   ApiResponse.success(res, "OK", "Server is active", 200);
 });

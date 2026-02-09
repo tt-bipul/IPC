@@ -20,6 +20,11 @@ export class UserController {
   public login = asyncHandler(async (req: Request, res: Response) => {
     const { email, password } = req.body;
     const result = await this.service.login(email, password);
+    res.cookie("accessToken", result.token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      maxAge: 24 * 60 * 60 * 1000, // 1 day
+    });
     ApiResponse.success(
       res,
       { ...result, user: sanitizeUser(result.user) },
