@@ -4,6 +4,7 @@ import {
   ISubscriptionPlan,
   IAgencySubscription,
   IAgencyDocumentUsage,
+  ISubscriptionHistoryItem,
 } from "./Subscription.types";
 
 export class SubscriptionRepository {
@@ -112,14 +113,49 @@ export class SubscriptionRepository {
     return results.length > 0 ? results[0] : null;
   }
 
-  async getHistory(agencyId: string): Promise<IAgencySubscription[]> {
+  async getHistory(agencyId: string): Promise<ISubscriptionHistoryItem[]> {
     const query = QueryBuilder.selectAll()
+      .select([
+        "agency_subscriptions.id",
+        "agency_subscriptions.agency_id",
+        "subscription_plans.name as plan_name",
+        "subscription_plans.price",
+        "agency_subscriptions.start_date",
+        "agency_subscriptions.end_date",
+        "agency_subscriptions.is_active",
+        "COALESCE(agency_document_usage.documents_processed, 0) as documents_usage",
+      ])
       .from("agency_subscriptions")
-      .where("agency_id", agencyId)
-      .orderBy("created_at", "DESC")
+      .join(
+        "subscription_plans",
+        "agency_subscriptions.subscription_plan_id",
+        "=",
+        "subscription_plans.id",
+      )
+      .join(
+        "agency_document_usage",
+        "agency_subscriptions.id",
+        "=",
+        "agency_document_usage.subscription_id",
+        "LEFT",
+      )
+      .where("agency_subscriptions.agency_id", agencyId)
+      .orderBy("agency_subscriptions.created_at", "DESC")
       .build();
 
-    return await this.db.query<IAgencySubscription[]>(query.sql, query.params);
+    const results = await this.db.query<any[]>(query.sql, query.params);
+
+    return results.map((row) => ({
+      id: row.id,
+      agency_id: row.agency_id,
+      plan_name: row.plan_name,
+      price: row.price,
+      start_date: row.start_date,
+      end_date: row.end_date,
+      status: row.is_active ? "Active" : "Expired",
+      documents_usage: row.documents_usage,
+      is_active: Boolean(row.is_active),
+    }));
   }
 
   async createUsageRecord(usage: IAgencyDocumentUsage): Promise<void> {

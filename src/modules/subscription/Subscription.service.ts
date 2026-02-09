@@ -3,6 +3,7 @@ import {
   ISubscriptionPlan,
   IAgencySubscription,
   AgencyUsageStats,
+  ISubscriptionHistoryItem,
 } from "./Subscription.types";
 import { AppError } from "../../core/ErrorHandler";
 
@@ -79,7 +80,7 @@ export class SubscriptionService {
     return await this.repository.getActiveSubscription(agencyId);
   }
 
-  async getHistory(agencyId: string): Promise<IAgencySubscription[]> {
+  async getHistory(agencyId: string): Promise<ISubscriptionHistoryItem[]> {
     return await this.repository.getHistory(agencyId);
   }
 

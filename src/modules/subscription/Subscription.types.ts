@@ -35,3 +35,15 @@ export interface AgencyUsageStats {
   subscription_start_date: Date;
   subscription_end_date: Date;
 }
+
+export interface ISubscriptionHistoryItem {
+  id: number;
+  agency_id: string;
+  plan_name: string;
+  price: number;
+  start_date: Date;
+  end_date: Date;
+  status: "Active" | "Expired";
+  documents_usage: number;
+  is_active: boolean;
+}
