@@ -3,6 +3,8 @@ import { SubscriptionService } from "./Subscription.service";
 import { ApiResponse } from "../../utils/ApiResponse";
 import { asyncHandler } from "../../utils/AsyncHandler";
 import { AppError } from "../../core/ErrorHandler";
+import { UserRole } from "../user/User.types";
+import { AgencyReadRepository } from "../agency/Repositories/read.repository";
 
 export class SubscriptionController {
   private service = new SubscriptionService();
@@ -75,8 +77,64 @@ export class SubscriptionController {
     },
   );
 
-  public getUsage = asyncHandler(async (req: Request, res: Response) => {
-    const usage = await this.service.getUsage(req.params.agencyId);
-    ApiResponse.success(res, usage);
+  public getUsage = asyncHandler(async (req: any, res: Response) => {
+    const { agencyId } = req.params;
+    const { page, limit, search } = req.query;
+    const currentUser = req.user;
+    if (agencyId) {
+      if (
+        currentUser.roles.includes(UserRole.VP) ||
+        currentUser.roles.includes(UserRole.AGENT)
+      ) {
+        const AgencyReadRepo = new AgencyReadRepository();
+        const agencies = await AgencyReadRepo.getAgenciesByUserId(
+          currentUser.id,
+          false,
+        );
+        if (!agencies || agencies.length === 0) {
+          throw new AppError("No agency assigned to this user", 404);
+        }
+        const vpAgencyId = agencies[0].agency_id;
+        if (agencyId !== vpAgencyId) {
+          throw new AppError(
+            "You are not authorized to view this agency's usage",
+            403,
+          );
+        }
+        const usage = await this.service.getUsage(vpAgencyId);
+        ApiResponse.success(res, usage);
+        return;
+      }
+      const usage = await this.service.getUsage(agencyId);
+      ApiResponse.success(res, usage);
+      return;
+    }
+    if (currentUser.roles.includes(UserRole.SUPER_ADMIN)) {
+      const result = await this.service.getAllAgenciesUsage({
+        page: Number(page) || 1,
+        limit: Number(limit) || 10,
+        search: search as string,
+      });
+      ApiResponse.success(res, result);
+    } else if (
+      currentUser.roles.includes(UserRole.VP) ||
+      currentUser.roles.includes(UserRole.AGENT)
+    ) {
+      const AgencyReadRepo = new AgencyReadRepository();
+      const agencies = await AgencyReadRepo.getAgenciesByUserId(
+        currentUser.id,
+        false,
+      );
+
+      if (!agencies || agencies.length === 0) {
+        throw new AppError("No agency assigned to this VP", 404);
+      }
+
+      const vpAgencyId = agencies[0].agency_id;
+      const usage = await this.service.getUsage(vpAgencyId);
+      ApiResponse.success(res, usage);
+    } else {
+      throw new AppError("You do not have permission to view usage data", 403);
+    }
   });
 }

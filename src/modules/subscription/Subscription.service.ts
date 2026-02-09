@@ -106,4 +106,31 @@ export class SubscriptionService {
       subscription_end_date: subscription.end_date,
     };
   }
+
+  async getAllAgenciesUsage(options?: {
+    page: number;
+    limit: number;
+    search?: string;
+  }): Promise<{
+    data: any[];
+    pagination: {
+      total: number;
+      page: number;
+      limit: number;
+      totalPages: number;
+    };
+  }> {
+    const { data, total } = await this.repository.getAllUsages(options);
+    const { page = 1, limit = 10 } = options || {};
+
+    return {
+      data,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
 }

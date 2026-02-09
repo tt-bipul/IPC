@@ -187,4 +187,63 @@ export class SubscriptionRepository {
     );
     return results.length > 0 ? results[0] : null;
   }
+
+  async getAllUsages(options?: {
+    page: number;
+    limit: number;
+    search?: string;
+  }): Promise<{ data: any[]; total: number }> {
+    const { page = 1, limit = 10, search } = options || {};
+    const offset = (page - 1) * limit;
+
+    const baseQuery = new QueryBuilder()
+      .select([
+        "agency_subscriptions.agency_id",
+        "subscription_plans.name as plan_name",
+        "subscription_plans.max_documents",
+        "COALESCE(agency_document_usage.documents_processed, 0) as documents_processed",
+        "agency_subscriptions.start_date",
+        "agency_subscriptions.end_date",
+        "agency_subscriptions.is_active",
+      ])
+      .from("agency_subscriptions")
+      .join(
+        "subscription_plans",
+        "agency_subscriptions.subscription_plan_id",
+        "=",
+        "subscription_plans.id",
+      )
+      .join(
+        "agency_document_usage",
+        "agency_subscriptions.id",
+        "=",
+        "agency_document_usage.subscription_id",
+        "LEFT",
+      )
+      .where("agency_subscriptions.is_active", true);
+
+    if (search) {
+      baseQuery.whereLike("agency_subscriptions.agency_id", `%${search}%`);
+    }
+
+    const countQuery = new QueryBuilder()
+      .select(["COUNT(agency_subscriptions.id) as total"])
+      .from("agency_subscriptions")
+      .where("agency_subscriptions.is_active", true);
+
+    if (search) {
+      countQuery.whereLike("agency_subscriptions.agency_id", `%${search}%`);
+    }
+
+    const countResult = await this.db.query<any[]>(
+      countQuery.build().sql,
+      countQuery.build().params,
+    );
+    const total = countResult[0]?.total || 0;
+
+    const dataQuery = baseQuery.limit(limit).offset(offset).build();
+    const data = await this.db.query<any[]>(dataQuery.sql, dataQuery.params);
+
+    return { data, total };
+  }
 }

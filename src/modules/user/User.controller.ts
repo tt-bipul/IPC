@@ -8,6 +8,8 @@ import { validateUserCreatePayload } from "./validators/createUser.validator";
 import { UserRole } from "./User.types";
 import { AuthRequest } from "../../middlewares/AuthMiddleware";
 import CookieSetter from "../../utils/Cookie-Setter";
+import { AgencyReadRepository } from "../agency/Repositories/read.repository";
+import { SubscriptionService } from "../subscription/Subscription.service";
 
 export class UserController {
   private service = new UserService();
