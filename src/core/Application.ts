@@ -21,7 +21,12 @@ export class Application {
   }
 
   private initializeMiddlewares(): void {
-    this.app.use(cors({ origin: true }));
+    this.app.use(
+      cors({
+        origin: true,
+        credentials: true,
+      }),
+    );
     this.app.use(express.json());
     this.app.use(express.urlencoded({ extended: true }));
     this.app.use(cookieParser());
