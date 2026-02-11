@@ -11,12 +11,13 @@ export default class CookieSetter {
       ? {
           httpOnly: true,
           secure: true,
+          sameSite: "none" as const,
           maxAge: 24 * 60 * 60 * 1000, // 1 day
         }
       : {
           httpOnly: true,
           secure: false,
-          maxAge: 24 * 60 * 60 * 1000, // 1 day};
+          maxAge: 24 * 60 * 60 * 1000, // 1 day
         };
     res.cookie(name, value, options);
   }
